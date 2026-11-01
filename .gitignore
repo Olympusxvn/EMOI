@@ -1,0 +1,25 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+**/.near-credentials/
+activity.log
+
+# Rust / cargo-near
+target/
+**/*.rs.bk
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+video-edit/slides/

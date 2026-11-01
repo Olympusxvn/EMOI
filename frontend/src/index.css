@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+body {
+  background: #0b0e11;
+  color: #e6e9ec;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  margin: 0;
+}
+
+a.link {
+  color: #00c1de;
+  text-decoration: none;
+}
+a.link:hover {
+  text-decoration: underline;
+}
+
+.card {
+  background: #12161a;
+  border: 1px solid #232a30;
+  border-radius: 12px;
+  padding: 18px;
+  margin-top: 14px;
+}
+
+.btn-primary {
+  background: #00c1de;
+  color: #071014;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #e6e9ec;
+  border: 1px solid #232a30;
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-danger {
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

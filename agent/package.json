@@ -1,0 +1,25 @@
+{
+  "name": "emoi-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "tsx test/validation.test.ts && tsx test/parser.test.ts",
+    "demo:valid": "tsx scripts/demo-valid.ts",
+    "demo:attack": "tsx scripts/demo-attack.ts",
+    "demo:pause": "tsx scripts/pause-demo.ts",
+    "server": "tsx src/server.ts",
+    "create-agent": "tsx scripts/create-agent.ts",
+    "reissue-fck": "tsx scripts/reissue-fck.ts"
+  },
+  "dependencies": {
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.5",
+    "near-kit": "^0.20.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.0"
+  }
+}
