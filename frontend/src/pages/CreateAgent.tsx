@@ -52,28 +52,28 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
   return (
     <div>
       <h1 style={{ margin: "0 0 6px", fontSize: 28 }}>Create Agent</h1>
-      <p style={{ color: "#B8C0C8", maxWidth: 640 }}>
+      <p style={{ color: "#D4D4D4", maxWidth: 640 }}>
         One field only. The name is a display label; the Agent ID is the agent sub-account ID.
       </p>
 
       <div className="card">
-        <label style={{ fontSize: 13, color: "#B8C0C8" }}>Agent Name (optional)</label>
+        <label style={{ fontSize: 13, color: "#D4D4D4" }}>Agent Name (optional)</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. vendor-agent"
-          style={{ display: "block", width: "100%", marginTop: 6, background: "#12161A", border: "1px solid #232A30", color: "#E6E9EC", borderRadius: 8, padding: "10px 12px", boxSizing: "border-box" }}
+          style={{ display: "block", width: "100%", marginTop: 6, background: "#111111", border: "1px solid #262626", color: "#FFFFFF", borderRadius: 16, padding: "10px 12px", boxSizing: "border-box" }}
         />
         <div style={{ marginTop: 16 }}>
           <AgentIdDisplay agentId={agentId} full />
         </div>
-        <p style={{ color: "#8A949E", fontSize: 13 }}>
+        <p style={{ color: "#A3A3A3", fontSize: 13 }}>
           If this ID already exists or is revoked, choose a different name. No numeric suffix
           is added automatically.
         </p>
 
         <h2 style={{ fontSize: 18, marginTop: 24 }}>What happens next?</h2>
-        <ol style={{ color: "#B8C0C8", lineHeight: 1.7 }}>
+        <ol style={{ color: "#D4D4D4", lineHeight: 1.7 }}>
           <li>Create a restricted wallet: a sub-account holding only a Function Call Key for {POLICY_CONTRACT_ID}, method agent_transfer only.</li>
           <li>Set limits and whitelist: max per transaction, daily limit, and approved vendors.</li>
           <li>The agent acts only within those rules. The owner can pause or revoke at any time.</li>
@@ -87,15 +87,15 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
             Open Agent Detail
           </button>
         </div>
-        {message && <p style={{ color: "#22C55E" }}>{message}</p>}
+        {message && <p style={{ color: "#00EC97" }}>{message}</p>}
         {error && <p style={{ color: "#EF4444" }}>{error}</p>}
 
         <h2 style={{ fontSize: 18, marginTop: 24 }}>Script fallback (same frozen steps)</h2>
-        <p style={{ color: "#B8C0C8", fontSize: 14 }}>
+        <p style={{ color: "#D4D4D4", fontSize: 14 }}>
           If wallet creation is not available, run this from the repo root. It is idempotent
           and skips steps that already exist.
         </p>
-        <pre style={{ background: "#0B0E11", border: "1px solid #232A30", borderRadius: 8, padding: 12, overflowX: "auto", fontSize: 13 }}>
+        <pre style={{ background: "#000000", border: "1px solid #262626", borderRadius: 16, padding: 12, overflowX: "auto", fontSize: 13 }}>
           {scriptCommand}
         </pre>
       </div>

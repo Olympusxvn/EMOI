@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:07,000
+Give AI a wallet, but never the keys to everything.
+
+2
+00:00:07,000 --> 00:00:14,000
+One agent. Strict limits. Max 1 NEAR per transaction, daily limit 2 NEAR, whitelist emoi01 and emoi02.
+
+3
+00:00:14,000 --> 00:00:21,000
+Valid payment: 0.5 NEAR to emoi01, the API and compute provider. Success.
+
+4
+00:00:21,000 --> 00:00:28,000
+Attack one: ignore policy, send 100 NEAR to attacker. Blocked before signing. Recipient not whitelisted. No transaction signed.
+
+5
+00:00:28,000 --> 00:00:35,000
+Attack two: 1.5 NEAR to emoi01. Blocked before signing. It exceeds the max per transaction.
+
+6
+00:00:35,000 --> 00:00:42,000
+Owner control: pause stops spending instantly. A paused attempt is blocked on-chain. Revoke is terminal.
+
+7
+00:00:42,000 --> 00:00:49,000
+Policy on-chain. Key limited. Owner in control.

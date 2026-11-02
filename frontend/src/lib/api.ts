@@ -44,3 +44,38 @@ export async function postAttackDemo(): Promise<unknown> {
   if (!res.ok) throw new Error("agent service /attack-demo failed");
   return res.json();
 }
+
+export interface ResearchJob {
+  id: string;
+  topic: string;
+  agent: string;
+  offerNear: string;
+  minPriceNear: string;
+  status: string;
+  counterNear?: string;
+  reasoning?: string;
+  decision?: string;
+  steps: Array<{ part: string; vendor: string; role: string; amountNear: string; status: string; txHash?: string; reason?: string }>;
+  report: string | null;
+  reportNote: string;
+}
+
+export async function postResearchStart(topic: string, offerNear: string): Promise<ResearchJob> {
+  const res = await fetch(`${AGENT_SERVICE_URL}/research/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ topic, offerNear }),
+  });
+  if (!res.ok) throw new Error((await res.json() as { error?: string }).error ?? "research start failed");
+  return res.json();
+}
+
+export async function postResearchRespond(id: string, decision: "accept" | "decline"): Promise<ResearchJob> {
+  const res = await fetch(`${AGENT_SERVICE_URL}/research/respond`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, decision }),
+  });
+  if (!res.ok) throw new Error((await res.json() as { error?: string }).error ?? "research respond failed");
+  return res.json();
+}

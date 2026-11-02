@@ -15,10 +15,20 @@ export function nearToYocto(amountNear: string): string {
   return (BigInt(whole) * 10n ** 24n + BigInt((frac + "0".repeat(24)).slice(0, 24) || "0")).toString();
 }
 
+// Demo vendors are labels for whitelisted accounts, not a vendor system:
+// there is no vendor registry, onboarding, or billing integration. The
+// contract whitelist — not this list — decides whether a payment passes.
+export const DEMO_VENDORS = [
+  { account: "emoi01.testnet", role: "API/compute provider" },
+  { account: "emoi02.testnet", role: "data provider" },
+] as const;
+
+export function vendorLabel(account: string): string | null {
+  return DEMO_VENDORS.find((v) => v.account === account)?.role ?? null;
+}
+
 export function vendorRole(recipient: string): string {
-  if (recipient === "emoi01.testnet") return "API/compute provider";
-  if (recipient === "emoi02.testnet") return "data provider";
-  return "vendor";
+  return vendorLabel(recipient) ?? "vendor";
 }
 
 export function nearBlocksAccountLink(accountId: string): string {

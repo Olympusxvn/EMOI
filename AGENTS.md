@@ -6,10 +6,14 @@ NEAR Hackathon 2026, tracks: `agents` (Agent Economy) + `security` (AI Security 
 ## Architecture (frozen, do not redesign without the owner)
 
 - PolicyVault custody: contract on `policy.emoi.testnet` holds funds and enforces policy.
-- Agent account, e.g. `agent.emoi.testnet`, holds ONLY a Function Call Key:
+- Agent service holds ONLY a Function Call Key:
   receiver = `policy.emoi.testnet`, method_names = `["agent_transfer"]`, gas allowance only.
   An FCK cannot attach NEAR and cannot transfer NEAR by itself — that is why limits
   live in the contract, not in the key.
+  Interim honesty (2026-11-02 audit): the main agent account still has a
+  full-access key on-chain alongside its FCK; account-level FCK-only was proven
+  on a throwaway agent and is the final pre-flip step (13–14/11), after video +
+  all demo txs. Do not claim account-level FCK-only for main until that deletion.
 - Owner account: `emoi.testnet` (testnet). Owner funds the vault, sets policy, can
   pause/resume, and revoke is terminal (a revoked Agent ID cannot be re-registered).
 - Agent ID = agent sub-account ID. No separate numeric ID, mapping table, NFT, or
@@ -42,7 +46,7 @@ NEAR Hackathon 2026, tracks: `agents` (Agent Economy) + `security` (AI Security 
 - `contract/` — Rust contract (near-sdk 5.x, via `cargo near new` template).
   Phase 1 replaces the template auction code with PolicyVault; do not keep template code.
 - `agent/` — TypeScript agent service (near-kit; near-api-js is the fallback).
-- `frontend/` — Next.js local frontend (create-near-app style, Wallet Selector).
+- `frontend/` — Vite React + TypeScript + Tailwind local frontend (near-connect-hooks wallet connector).
 - `scripts/` — `setup.sh`, `run-local.sh`, `create-agent.ts`, `reissue-fck.ts`,
   demo scripts (`demo:valid`, `demo:attack`).
 

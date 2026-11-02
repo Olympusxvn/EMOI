@@ -15,7 +15,7 @@ export default function ActivityPage() {
   return (
     <div>
       <h1 style={{ margin: "0 0 6px", fontSize: 28 }}>Activity</h1>
-      <p style={{ color: "#B8C0C8", maxWidth: 640 }}>
+      <p style={{ color: "#D4D4D4", maxWidth: 640 }}>
         Receipt-style rows. A success row has a NearBlocks receipt link. A reject row has
         no tx hash, because a local reject is blocked before signing, not a failed on-chain
         transaction.
@@ -24,7 +24,7 @@ export default function ActivityPage() {
       {entries.map((e, i) => (
         <ActivityRow key={i} entry={e} />
       ))}
-      {!entries.length && !error && <p style={{ color: "#8A949E" }}>No activity yet.</p>}
+      {!entries.length && !error && <p style={{ color: "#A3A3A3" }}>No activity yet.</p>}
     </div>
   );
 }

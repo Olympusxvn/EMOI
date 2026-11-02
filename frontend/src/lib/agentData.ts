@@ -11,12 +11,40 @@ export interface AgentData {
   vaultBalanceNear: string;
 }
 
+export type ViewFunction = (params: {
+  contractId: string;
+  method: string;
+  args: Record<string, unknown>;
+}) => Promise<unknown>;
+
+// Poll contract views until the agent status matches `expected`.
+// RPC views can lag one transaction behind contract execution (observed
+// 2026-11-02: a view right after pause still showed Active), so a single
+// view after Pause/Revoke must not be trusted. The contract is
+// authoritative; this only waits until a view catches up with it.
+export async function pollAgentStatus(
+  viewFunction: ViewFunction,
+  agentId: string,
+  expected: string,
+  opts?: { timeoutMs?: number; intervalMs?: number },
+): Promise<boolean> {
+  const timeoutMs = opts?.timeoutMs ?? 30000;
+  const intervalMs = opts?.intervalMs ?? 2000;
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    try {
+      const fresh = await fetchAgentData(viewFunction, agentId);
+      if (fresh.status === expected) return true;
+    } catch {
+      // Transient view/RPC failure: keep polling until the deadline.
+    }
+    if (Date.now() >= deadline) return false;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
 export async function fetchAgentData(
-  viewFunction: (params: {
-    contractId: string;
-    method: string;
-    args: Record<string, unknown>;
-  }) => Promise<unknown>,
+  viewFunction: ViewFunction,
   agentId: string,
 ): Promise<AgentData> {
   const state = (await viewFunction({

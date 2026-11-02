@@ -16,7 +16,7 @@ export function AgentIdDisplay({ agentId, full = false }: { agentId: string; ful
       : agentId;
   return (
     <div>
-      <div style={{ fontSize: 11, letterSpacing: "0.08em", color: "#8A949E", textTransform: "uppercase" }}>
+      <div style={{ fontSize: 11, letterSpacing: "0.08em", color: "#A3A3A3", textTransform: "uppercase" }}>
         Agent ID
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -43,7 +43,7 @@ export function AgentIdDisplay({ agentId, full = false }: { agentId: string; ful
 
 export function StatusBadge({ status }: { status: string | null }) {
   const color =
-    status === "Active" ? "#22C55E" : status === "Paused" ? "#F59E0B" : status === "Revoked" ? "#EF4444" : "#8A949E";
+    status === "Active" ? "#00EC97" : status === "Paused" ? "#F59E0B" : status === "Revoked" ? "#EF4444" : "#A3A3A3";
   return (
     <span
       style={{
@@ -73,18 +73,18 @@ export function SpentProgress({
   const nearLimit = pct >= 80;
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#B8C0C8" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#D4D4D4" }}>
         <span>
           Spent today: {spentNear} / {dailyNear} NEAR
         </span>
         <span>{pct.toFixed(0)}%</span>
       </div>
-      <div style={{ height: 8, background: "#232A30", borderRadius: 999, marginTop: 6, overflow: "hidden" }}>
+      <div style={{ height: 8, background: "#262626", borderRadius: 999, marginTop: 6, overflow: "hidden" }}>
         <div
           style={{
             width: `${pct}%`,
             height: "100%",
-            background: nearLimit ? "#F59E0B" : "#00C1DE",
+            background: nearLimit ? "#F59E0B" : "#00EC97",
           }}
         />
       </div>
@@ -99,16 +99,17 @@ export function SpentProgress({
 
 export function ActivityRow({ entry }: { entry: ActivityEntry }) {
   const isRejected = entry.status === "rejected";
-  const color = isRejected ? "#EF4444" : "#22C55E";
+  const color = isRejected ? "#EF4444" : "#00EC97";
   return (
     <div
       style={{
-        border: "1px solid #232A30",
+        border: "1px solid #262626",
         borderLeft: `4px solid ${color}`,
-        borderRadius: 10,
+        borderRadius: 16,
         padding: "12px 14px",
         marginBottom: 10,
-        background: "#12161A",
+        background: "#111111",
+        boxShadow: "0 8px 24px rgba(0, 0, 0, 0.45)",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -116,13 +117,13 @@ export function ActivityRow({ entry }: { entry: ActivityEntry }) {
           {isRejected ? "Rejected" : "Success"}
           {isRejected && entry.reason ? ` — ${entry.reason}` : ""}
         </strong>
-        <span style={{ color: "#8A949E", fontSize: 13 }}>
+        <span style={{ color: "#A3A3A3", fontSize: 13 }}>
           {new Date(entry.timestamp).toLocaleString()}
         </span>
       </div>
       <div style={{ marginTop: 6, fontSize: 14 }}>
         <div>
-          <span style={{ color: "#8A949E", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+          <span style={{ color: "#A3A3A3", fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Agent ID
           </span>{" "}
           <span style={{ fontFamily: "ui-monospace, monospace" }}>{entry.agent}</span>
@@ -132,9 +133,9 @@ export function ActivityRow({ entry }: { entry: ActivityEntry }) {
             ? `${vendorRole(entry.recipient)} — ${entry.recipient} — ${entry.amountNear} NEAR`
             : "No recipient (parse failed)"}
         </div>
-        {entry.intentLine && <div style={{ color: "#B8C0C8" }}>{entry.intentLine}</div>}
+        {entry.intentLine && <div style={{ color: "#D4D4D4" }}>{entry.intentLine}</div>}
         {entry.policyAtTime && (
-          <div style={{ color: "#B8C0C8", fontSize: 13 }}>
+          <div style={{ color: "#D4D4D4", fontSize: 13 }}>
             Policy at the time: max {entry.policyAtTime.maxNear} / daily {entry.policyAtTime.dailyNear} NEAR
           </div>
         )}
