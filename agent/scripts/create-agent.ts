@@ -109,9 +109,12 @@ async function main() {
     if (accountCheck.ok) {
       steps.account = "skipped (already exists)";
     } else {
+      // NOTE (near-cli >= 0.30): key saving split into save-to-keychain (new OS
+      // keychain, not files) vs save-to-legacy-keychain (~/.near-credentials
+      // files). Our tooling reads legacy files, so always use the legacy flag.
       const created = await runNear([
         "account", "create-account", "fund-myself", agentId, `${initialBalance} NEAR`,
-        "autogenerate-new-keypair", "save-to-keychain", "sign-as", ownerId,
+        "autogenerate-new-keypair", "save-to-legacy-keychain", "sign-as", ownerId,
         "network-config", "testnet", "sign-with-access-key-file", ownerKeyFile, "send",
       ]);
       if (!created.ok) throw new Error(`account creation failed: ${created.stdout.slice(-500)}`);
@@ -138,7 +141,7 @@ async function main() {
       const added = await runNear([
         "account", "add-key", agentId, "grant-function-call-access",
         "--allowance", `${fckAllowance} NEAR`, "--contract-account-id", policyId,
-        "--function-names", "agent_transfer", "autogenerate-new-keypair", "save-to-keychain",
+        "--function-names", "agent_transfer", "autogenerate-new-keypair", "save-to-legacy-keychain",
         "network-config", "testnet", "sign-with-access-key-file", agentKeyFile, "send",
       ]);
       if (!added.ok) throw new Error(`FCK add failed: ${added.stdout.slice(-500)}`);

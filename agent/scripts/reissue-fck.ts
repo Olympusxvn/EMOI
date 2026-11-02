@@ -48,10 +48,12 @@ async function main() {
   if (!fs.existsSync(agentKeyFile)) {
     throw new Error(`agent full key file not found at ${agentKeyFile}`);
   }
+  // NOTE (near-cli >= 0.30): use save-to-legacy-keychain so the key lands in
+  // ~/.near-credentials files (save-to-keychain writes the new OS keychain).
   const added = await runNear([
     "account", "add-key", agentId, "grant-function-call-access",
     "--allowance", `${allowance} NEAR`, "--contract-account-id", policyId,
-    "--function-names", "agent_transfer", "autogenerate-new-keypair", "save-to-keychain",
+    "--function-names", "agent_transfer", "autogenerate-new-keypair", "save-to-legacy-keychain",
     "network-config", "testnet", "sign-with-access-key-file", agentKeyFile, "send",
   ]);
   if (!added.ok) throw new Error(`FCK add failed: ${added.stdout.slice(-500)}`);
