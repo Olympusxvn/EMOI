@@ -95,8 +95,8 @@ inside its policy.
 
 ### How to verify (do X, see Y)
 
-- `cd contract && cargo test --lib` → 15 unit tests, all green, named after the spec
-- `cd agent && npm test` → validation (11) + parser (5) tests, all green; every failure test asserts mock signer call count = 0
+- `cd contract && cargo test --lib` → 26 unit tests, all green, named after the spec
+- `cd agent && npm test` → validation (11) + parser (6) + research + LLM-harness (7) tests, all green; every failure test asserts mock signer call count = 0
 - `cd agent && npm run demo:valid -- --json` → one successful transfer, real tx hash (see below)
 - `cd agent && npm run demo:attack -- --json` → both attacks blocked, each with its named `PolicyViolation`, no NEAR leaves the vault
 - `cd agent && npm run demo:pause -- --json` → owner pauses, a transfer is blocked with `AgentPaused` (no tx hash), owner resumes
@@ -158,8 +158,8 @@ demo limitation, documented, not a per-user billing claim).
 
 ## Contract API
 
-Contract: `policy.emoi.testnet` (testnet). Wasm 139.3 KB, SHA-256 hex
-`87368f69ef00b1a8c3550881e40839fddf5f416da4fabfaee55cfb3faa1f8ef7`.
+Contract: `policy.emoi.testnet` (testnet). Wasm 139,244 bytes, SHA-256 hex
+`7c0774e42a746c28c9621234bfa04835395a2fcbf78db649ba78b5880d6d2f7e` (redeployed 2026-11-02, see below).
 
 | Method | Type | Args | Notes |
 |---|---|---|---|
@@ -488,6 +488,10 @@ Explorer base: https://explorer.testnet.near.org/transactions/
 | Pause agent (`demo:pause`) | `9HnmP4Cuvk61MJ1pgVm6BuBeA5rTspE6bFGzS58LyAaH` |
 | Resume agent (`demo:pause`) | `8PJUkRTj2Kxkziy4DZgBRDYkGf6kqhTguUxcyCKMHaSC` |
 | Valid transfer 0.5 NEAR to emoi01, after pause demo (spent_today then reached the 2 NEAR daily limit) | `7WWYtHGPTSAJi1mrJETHmZ3RRegkQb1MPKppgrgExgK8` |
+| Redeploy PolicyVault 2026-11-02 (saturating_sub daily-limit fix, named-violation tests; without init call, state preserved, conformance re-run 7/7) | `4u7R4yZGDuDFVZ1Tc9LMgBvn5eH4YT3vrRqQknWVyAim` |
+| Set policy for test agent `redeploy-proof.emoi.testnet` (max 1, daily 2, whitelist emoi01) | `4fgKs9m271jBPpauyegibznKjVJ4Wx4GtG6mVsZBR9Gt` |
+| Valid transfer 0.5 NEAR to emoi01 via test agent on the redeployed contract | `E8paqc4L9dusds6s6eWUkSVM1iapMqdmAFbpZCXsiY6t` |
+| Owner deposit 0.5 NEAR restoring the shared vault to 2.0 NEAR (main agent spent_today unchanged at 0.5) | `5nhJCELJYzd24NZDK8v24LXMa3qPBzYcD1bgYgvRqL9j` |
 
 Attack transactions have no tx hash by design when blocked locally.
 The on-chain non-whitelisted attack in the Phase 1 smoke test was
