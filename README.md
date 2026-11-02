@@ -522,7 +522,7 @@ Reproduction, two levels:
    (`<name>.<your-account>`). Then run
    `cd agent && npm run create-agent -- --name <name> --set-policy --deposit 5`
    (needs `OWNER_PRIVATE_KEY` in `.env`) and run the demo scripts against
-   your own vault. The frontend "Create with wallet" path needs the same
+   your own vault. After creating, point .env at the new vault (AGENT_ACCOUNT_ID=<name>.<your-account>) and re-run the same create-agent command once: it detects the match and backfills AGENT_FCK_PRIVATE_KEY from the keychain file, so no manual key pasting is needed. The frontend "Create with wallet" path needs the same
    named account; the page generates the agent keypair and shows the key file once — save it, then the script finishes FCK + registration. Note: Meteor blocks full-access keys by policy, so account creation needs a wallet that permits them (e.g. MyNearWallet) — otherwise use the script path, which is the recommended route. Judges
    cannot reproduce the team's vault without the team's FCK, and that is
    stated here on purpose.

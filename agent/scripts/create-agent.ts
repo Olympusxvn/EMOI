@@ -173,6 +173,11 @@ async function main() {
         fs.writeFileSync(envPath, updated, { mode: 0o600 });
         steps.envFck = "backfilled from FCK key file (value not printed)";
       }
+    } else if (agentId !== configuredAgent) {
+      steps.envFck =
+        `skipped: created ${agentId} but .env configures ${configuredAgent}. ` +
+        `To use the new vault, set AGENT_ACCOUNT_ID=${agentId} in .env and ` +
+        `re-run this script to backfill AGENT_FCK_PRIVATE_KEY.`;
     }
 
     // 3. Registration: use a view, not a guess.

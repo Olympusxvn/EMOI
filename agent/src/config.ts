@@ -30,7 +30,7 @@ export const config = {
 export function requireAgentFck(): string {
   if (!config.agentFckPrivateKey) {
     throw new Error(
-      "AGENT_FCK_PRIVATE_KEY is not set in .env. Run the create-agent script first.",
+      "AGENT_FCK_PRIVATE_KEY is not set in .env. If you just created a vault, set AGENT_ACCOUNT_ID to it in .env and re-run the create-agent script to backfill the key.",
     );
   }
   return config.agentFckPrivateKey;
