@@ -188,3 +188,34 @@ deterministic enforcement (security). After judging, in order: (1) Intents
   ed25519:3zCVL4... (wallettest01a FCK, no local file).
 - Remaining pre-flip: video re-render to fixed narration, FCK reissue 13-14/11
   with allowance noted, flip public + human form submit morning 14/11.
+
+## G. Session log 2026-11-02 (fresh-clone quickstart verification)
+
+Fresh clone EMOI-judgetest @ c6bc182, ran README word-for-word. Two real bugs
+found and fixed; level-2 closed with a new vault from scratch.
+- Level-1: setup.sh exit 0; agent npm test green (11+6+research+7);
+  cargo test --lib env-blocked on Windows (no NASM/MSVC for aws-lc-sys) ->
+  README now states the C-toolchain prereq (e9a5bcd).
+- BUG run-local.sh never worked: "cd x && cmd &" backgrounds the cd too, so
+  the following "cd .." climbs above repo root and "cd frontend" fails.
+  Agent booted, frontend never did. Fixed with subshells (e9a5bcd); verified
+  agent :3001/health OK + frontend serves HTML (landed on 5175 only because
+  user servers hold 5173/5174; left untouched).
+- demo:attack green with zero secrets (both blocked, named reasons, no tx).
+- Level-2 judgetest01.emoi.testnet via README command exactly:
+  create 2gXJgdM4cRpvSh95vVNhiyPWNC7JgEGM4fe3foG4H1d1, FCK ed25519:Boeyi...ErCk
+  (YBf88wPZ47jjNaZpG3XAhn3C8VcF8jNsYZNiYb95jWN), register DpmE1Y..., deposit
+  7XMjYKhU..., policy 8YMTAw56.... First end-to-end run of the fixed
+  save-to-legacy-keychain script path: key files landed correctly.
+- BUG judge-path backfill never fired for new vaults (backfill requires new
+  vault == AGENT_ACCOUNT_ID, but fresh clones configure agent.emoi.testnet),
+  so demo:valid failed with a misleading "run create-agent first". Fixed in
+  3ec4951: script prints re-point steps, config.ts error says the fix, README
+  documents the re-run-to-backfill step. Verified: re-run backfilled,
+  demo:valid success JVs3RVrSzdcKTDbgqutTgySjYmkSBRXbbVmKDS1u1xa (SuccessValue),
+  demo:pause pause F84sL7.../resume 2hJrZ..., attempt AgentPaused with no tx.
+- Final re-run: all skips except honest 0.5 top-up (HAPkS3dK...) after demo
+  spend; policy re-set again (7Kbdevf1...) despite unchanged values -- open
+  nit, extra tx fee only, no user impact.
+- Clone EMOI-judgetest kept until after 14/11 for reference, then deleted;
+  its .env holds real keys (gitignored).
