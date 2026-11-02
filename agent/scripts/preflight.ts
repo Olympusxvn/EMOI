@@ -11,7 +11,7 @@
 // - A full-access key still on the main account is WARN, not FAIL: deleting
 //   it is the final step AFTER this check (video + all demo txs done),
 //   so preflight must report it, not block on it.
-// - Unpushed local changes and a vault balance != 2.0 NEAR are WARN:
+// - Unpushed local changes and a vault balance != 5.0 NEAR (audited 2026-11-02) are WARN:
 //   they are expected during development and must be resolved by the
 //   snapshot push / vault top-up, not by preflight itself.
 //
@@ -157,7 +157,7 @@ async function main() {
       policy.whitelist.includes("emoi01.testnet") &&
       policy.whitelist.includes("emoi02.testnet");
     add("frozen demo policy", frozen ? "PASS" : "FAIL", policy ? `max=${policy.max_per_tx}, daily=${policy.daily_limit}, whitelist=${policy.whitelist.join(",")}` : "no policy");
-    add("vault balance", bal === "2000000000000000000000000" ? "PASS" : "WARN", `vault=${bal} yocto (audited state is 2 NEAR; top up if different)`);
+    add("vault balance", bal === "5000000000000000000000000" ? "PASS" : "WARN", `vault=${bal} yocto (audited state is 5 NEAR as of 2026-11-02; top up if different)`);
   } catch (e) {
     add("on-chain state", "FAIL", `view failed: ${String(e).slice(0, 200)}`);
   }
