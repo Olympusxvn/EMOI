@@ -144,7 +144,7 @@ gitignored; tests/build/lint green.
 
 - [ ] P0+P1 green: cargo test, npm test, frontend build + lint, conformance
   PASS (no unexpected SKIP), preflight 0 FAIL
-- [ ] Fresh-clone run AND judge-path run (new name, own vault) both green
+- [x] Fresh-clone run AND judge-path run (wallettest01a.emoi.testnet, 2026-11-02) both green
 - [ ] FCK reissued pre-deletion with allowance noted; deletion executed
   13–14/11; post-deletion `demo:valid` green
 - [ ] Video output matches narration (C4/N8); X post live with video; repo
@@ -157,3 +157,34 @@ The policy-bound agent wallet stays the core: bounded autonomy (agents) over
 deterministic enforcement (security). After judging, in order: (1) Intents
 "agent pays vendor in USDC" lane, (2) pending-approval queue + batch payments,
 (3) public registry + trust badges. None enter the submission window.
+
+## F. Session log 2026-11-02 (post-audit fixes + live-test)
+
+- P0/P1/P2 fixes implemented and pushed (1adb5d1): C1 owner-derived
+  namespace (script + wallet), C2 AddKey in wallet tx, C3 saturating_sub +
+  regression test, C4 input->reason corrections in 8 artifacts, N8 narration,
+  M1 named asserts, M2 11 new contract tests, N2 resolveLlmIntent + 7 offline
+  tests, M3/M5/M4/N1/N10/N11, shared fck.ts picker, audit-checklist hardening,
+  double-accept 409 guard, preflight additions.
+- C3 REDEPLOYED 2026-11-02, tx 4u7R4yZGDuDFVZ1Tc9LMgBvn5eH4YT3vrRqQknWVyAim,
+  wasm SHA-256 7c0774e42a746c28c9621234bfa04835395a2fcbf78db649ba78b5880d6d2f7e
+  (139,244 bytes), state preserved, contract tests 26 green on VM Rust,
+  conformance re-run 7/7. Closes C3.
+- NEW finding (wallet live-test): near-cli >= 0.30 split key saving into
+  save-to-keychain (new OS keychain, not files) vs save-to-legacy-keychain
+  (~/.near-credentials files). Scripts used the old flag, so one FCK landed
+  on-chain with no local file (orphan ed25519:3zCVL4...). Fixed in deac6a5
+  (create-agent.ts x2, reissue-fck.ts x1) with NOTE comments. TS-side green.
+- C1/C2 judge-path CLOSED with wallettest01a.emoi.testnet: wallet creation
+  tx 5DLLAM3y6rEPqJgmsZSef8GjVxACFChgxDf7qgzyYyQ2 (Intear Wallet,
+  browser-generated keypair, owner holds key), FCK add tx
+  GYwaiCHAV61Y5NxG8SC1K4fZgHm8hE5StYApRCKjzytS, demo:valid success tx
+  2hbVAPvT7u3j9qPL82x9rihYUjJ6wRN9NMorc4kkhmWq (SuccessValue, 0.5 NEAR to
+  emoi01.testnet within max 1 / daily 2). All three saved on proof-page (d963e9f).
+- Wallet note: Meteor blocks FullAccess AddKey requests; judge path recommends
+  the script route or a permitting wallet (Intear shows a soft warning).
+- Orphaned testnet keys (scope-limited, delete later, non-blocking):
+  ed25519:2qCe... (wallettest02/03 full key, no local private copy),
+  ed25519:3zCVL4... (wallettest01a FCK, no local file).
+- Remaining pre-flip: video re-render to fixed narration, FCK reissue 13-14/11
+  with allowance noted, flip public + human form submit morning 14/11.
