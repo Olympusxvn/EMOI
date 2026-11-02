@@ -3,6 +3,23 @@ import { useNearWallet } from "near-connect-hooks";
 import { POLICY_CONTRACT_ID, slugify } from "../lib/near";
 import { AgentIdDisplay } from "../components/common";
 
+// Some wallets (notably Meteor) block any FullAccess AddKey by policy, which
+// makes wallet-driven account creation impossible under them: a new account
+// is unusable without a full-access key. Detect that block and point at the
+// paths that work instead of showing a bare failure.
+function walletBlockMessage(raw: string): string {
+  if (/full[\s-]?access/i.test(raw)) {
+    return (
+      "Your wallet blocked the full-access key this new account needs (a known Meteor policy). " +
+      "Retry with a wallet that permits full-access keys (e.g. MyNearWallet), " +
+      "or use the script command below, which is the recommended route for account creation."
+    );
+  }
+  return raw
+    ? `Wallet creation did not complete: ${raw}. Use the script command below instead; it creates the account, FCK, registration, and policy in the frozen order.`
+    : "Wallet creation did not complete. Use the script command below instead.";
+}
+
 export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: string) => void }) {
   const { signedAccountId, signAndSendTransactions, getAccessKeyList } = useNearWallet();
   const [name, setName] = useState("");
@@ -61,7 +78,7 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
       );
     } catch (e) {
       setError(
-        `Wallet creation did not complete: ${e instanceof Error ? e.message : String(e)}. Use the script command below instead; it creates the account, FCK, registration, and policy in the frozen order.`,
+        walletBlockMessage(e instanceof Error ? e.message : String(e)),
       );
     } finally {
       setBusy(false);
