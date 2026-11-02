@@ -47,14 +47,12 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 function runCmd(cmd: string, args: string[], cwd: string): { ok: boolean; out: string } {
-  // On Windows, npm is a .cmd shim that spawnSync cannot resolve without help.
-  const bin = process.platform === "win32" && cmd === "npm" ? "npm.cmd" : cmd;
   try {
     // cargo lives in ~/.cargo/bin, which is not always on PATH for spawned
     // processes; without it "cargo test" fails with an empty error, which
     // preflight must not report as a test failure.
     const env = { ...process.env, PATH: `${path.join(os.homedir(), ".cargo", "bin")}${path.delimiter}${process.env.PATH ?? ""}` };
-    const r = spawnSync(bin, args, { cwd, encoding: "utf-8", timeout: 600000, maxBuffer: 10 * 1024 * 1024, env });
+    const r = spawnSync(cmd, args, { cwd, encoding: "utf-8", timeout: 600000, maxBuffer: 10 * 1024 * 1024, env, shell: process.platform === "win32" });
     const err = (r as { error?: Error }).error;
     return { ok: r.status === 0, out: err ? String(err).slice(0, 800) : `${r.stdout ?? ""}\n${r.stderr ?? ""}`.slice(-800) };
   } catch (e) {
