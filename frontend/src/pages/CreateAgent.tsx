@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { KeyPair } from "near-api-js";
 import { useNearWallet } from "near-connect-hooks";
-import { POLICY_CONTRACT_ID, slugify } from "../lib/near";
+import { POLICY_CONTRACT_ID, copyText, slugify } from "../lib/near";
 import { AgentIdDisplay } from "../components/common";
 
 // Some wallets (notably Meteor) block any FullAccess AddKey by policy, which
@@ -21,11 +22,12 @@ function walletBlockMessage(raw: string): string {
 }
 
 export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: string) => void }) {
-  const { signedAccountId, signAndSendTransactions, getAccessKeyList } = useNearWallet();
+  const { signedAccountId, signAndSendTransactions } = useNearWallet();
   const [name, setName] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [createdKey, setCreatedKey] = useState<{ accountId: string; publicKey: string; privateKey: string } | null>(null);
 
   const slug = slugify(name);
   const parentId = (signedAccountId || "emoi.testnet").toLowerCase();
@@ -40,21 +42,17 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
     setBusy(true);
     setError(null);
     setMessage(null);
+    setCreatedKey(null);
     try {
-      // The new account must have a usable full-access key or nobody can
-      // ever sign for it. Reuse the signer's first full-access key (public
-      // key only, read from chain): the owner demonstrably controls the
-      // keys on their own account.
-      const keyList = await getAccessKeyList(signedAccountId);
-      const fullKey = keyList.keys.find(
-        (k) => k.access_key.permission === "FullAccess",
-      );
-      if (!fullKey) {
-        setError(
-          "Your wallet account has no full-access key, so the new agent account would have no usable key. Use the script command below instead.",
-        );
-        return;
-      }
+      // Fresh keypair generated locally: whoever creates the account provably
+      // holds its only full-access key. Never reuse a wallet key instead: a
+      // wallet may hold several full-access keys, and picking the wrong one
+      // orphans the account with a key nobody holds (seen live on testnet).
+      // The private key is shown once below and never leaves this browser
+      // except through the user's own copy action.
+      const agentKey = KeyPair.fromRandom("ed25519");
+      const newPublicKey = agentKey.getPublicKey().toString();
+      const newPrivateKey = agentKey.toString();
       const outcomes = await signAndSendTransactions({
         transactions: [
           {
@@ -64,7 +62,7 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
               {
                 type: "AddKey",
                 params: {
-                  publicKey: fullKey.public_key,
+                  publicKey: newPublicKey,
                   accessKey: { permission: "FullAccess" },
                 },
               },
@@ -73,8 +71,9 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
           },
         ],
       });
+      setCreatedKey({ accountId: agentId, publicKey: newPublicKey, privateKey: newPrivateKey });
       setMessage(
-        `Created ${agentId} with your wallet key (full access, ${outcomes.length} outcome(s)). Still missing: FCK, registration, funding, policy. To finish: copy your owner key file to ~/.near-credentials/testnet/${agentId}.json with account_id set to ${agentId}, then run the script below (it skips creation and does the rest).`,
+        `Created ${agentId} (${outcomes.length} outcome(s)). Save the key file below, then run the script to finish FCK + registration + funding + policy.`,
       );
     } catch (e) {
       setError(
@@ -125,6 +124,27 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
           </button>
         </div>
         {message && <p style={{ color: "#00EC97" }}>{message}</p>}
+        {createdKey && (
+          <div className="card" style={{ borderColor: "#F59E0B", marginTop: 12 }}>
+            <p style={{ color: "#F59E0B", fontSize: 13, margin: "0 0 8px" }}>
+              Save this key file now — shown once. Without it, this agent account can never be finished.
+            </p>
+            <pre style={{ background: "#000000", border: "1px solid #262626", borderRadius: 16, padding: 12, overflowX: "auto", fontSize: 13 }}>
+              {JSON.stringify({ account_id: createdKey.accountId, public_key: createdKey.publicKey, private_key: createdKey.privateKey }, null, 2)}
+            </pre>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 8 }}>
+              <button
+                className="btn-secondary"
+                onClick={() => { void copyText(JSON.stringify({ account_id: createdKey.accountId, public_key: createdKey.publicKey, private_key: createdKey.privateKey }, null, 2)); }}
+              >
+                Copy key file
+              </button>
+            </div>
+            <p style={{ color: "#A3A3A3", fontSize: 13 }}>
+              Save as ~/.near-credentials/testnet/{createdKey.accountId}.json, set OWNER_ACCOUNT_ID in .env, then run the script below.
+            </p>
+          </div>
+        )}
         {error && <p style={{ color: "#EF4444" }}>{error}</p>}
 
         <h2 style={{ fontSize: 18, marginTop: 24 }}>Script fallback (same frozen steps)</h2>
