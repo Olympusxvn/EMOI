@@ -27,6 +27,7 @@ import { Near } from "near-kit";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const POLICY = config.policyContractId;
 const MAIN = config.agentAccountId;
@@ -90,7 +91,7 @@ async function directTransfer(
 }
 
 async function main() {
-  const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+  const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const libRs = fs.readFileSync(path.join(repoRoot, "contract", "src", "lib.rs"), "utf-8");
   const readme = fs.readFileSync(path.join(repoRoot, "README.md"), "utf-8");
   const results: Result[] = [];

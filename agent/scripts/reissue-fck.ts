@@ -11,10 +11,11 @@ import { promisify } from "node:util";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { config as loadDotenv } from "dotenv";
 
 const execFileAsync = promisify(execFile);
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 loadDotenv({ path: path.join(repoRoot, ".env") });
 
 function stripAnsi(s: string): string {

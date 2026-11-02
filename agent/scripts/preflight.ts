@@ -24,8 +24,9 @@ import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 type Verdict = "PASS" | "WARN" | "FAIL" | "SKIP";
 type Check = { name: string; verdict: Verdict; detail: string };
 const checks: Check[] = [];
@@ -46,12 +47,14 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 function runCmd(cmd: string, args: string[], cwd: string): { ok: boolean; out: string } {
+  // On Windows, npm is a .cmd shim that spawnSync cannot resolve without help.
+  const bin = process.platform === "win32" && cmd === "npm" ? "npm.cmd" : cmd;
   try {
     // cargo lives in ~/.cargo/bin, which is not always on PATH for spawned
     // processes; without it "cargo test" fails with an empty error, which
     // preflight must not report as a test failure.
-    const env = { ...process.env, PATH: `${path.join(os.homedir(), ".cargo", "bin")}:${process.env.PATH ?? ""}` };
-    const r = spawnSync(cmd, args, { cwd, encoding: "utf-8", timeout: 600000, maxBuffer: 10 * 1024 * 1024, env });
+    const env = { ...process.env, PATH: `${path.join(os.homedir(), ".cargo", "bin")}${path.delimiter}${process.env.PATH ?? ""}` };
+    const r = spawnSync(bin, args, { cwd, encoding: "utf-8", timeout: 600000, maxBuffer: 10 * 1024 * 1024, env });
     const err = (r as { error?: Error }).error;
     return { ok: r.status === 0, out: err ? String(err).slice(0, 800) : `${r.stdout ?? ""}\n${r.stderr ?? ""}`.slice(-800) };
   } catch (e) {
@@ -63,15 +66,19 @@ async function main() {
   // 1. Secrets scan: no private-key material in files that could be pushed.
   // Public keys (ed25519:...) are on-chain public data and are NOT flagged;
   // only private-key assignments and tracked .env files are.
+  // Env KEY=value pairs are always single-line, so patterns 2-3 anchor to
+  // one line ([^\S\r\n] = spaces/tabs): multiline \s would match an empty
+  // value followed by any text on the next line. Pattern 1 stays multiline
+  // because pretty-printed JSON legitimately breaks the line there.
   const secretPatterns = [
     /"private_key"\s*:\s*"ed25519:/,
-    /PRIVATE_KEY\s*=\s*ed25519:[A-Za-z0-9]{10,}/,
-    /NEAR_AI_CLOUD_API_KEY\s*=\s*\S+/,
+    /PRIVATE_KEY[^\S\r\n]*=[^\S\r\n]*ed25519:[A-Za-z0-9]{10,}/,
+    /NEAR_AI_CLOUD_API_KEY[^\S\r\n]*=[^\S\r\n]*\S/,
     /master_seed_phrase|seed_phrase_hd_path/,
   ];
   const secretHits: string[] = [];
   for (const f of walk(repoRoot)) {
-    const rel = path.relative(repoRoot, f);
+    const rel = path.relative(repoRoot, f).replace(/\\/g, "/"); // exclusions below must match on Windows too
     if (rel === ".env" || rel.endsWith(".env")) continue; // .env itself is gitignored, never scanned as a leak
     if (rel === "agent/scripts/preflight.ts") continue; // this scanner's own pattern strings are not secrets
     if (rel.startsWith("video-edit/") && rel.endsWith(".mp4")) continue;
