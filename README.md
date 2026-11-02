@@ -514,7 +514,7 @@ npm run demo:attack -- --json  # both attacks blocked, no NEAR leaves the vault
 Reproduction, two levels:
 
 1. **No wallet needed:** fresh clone → `scripts/setup.sh` → `cd contract && cargo test --lib`
-   and `cd agent && npm test` — both green, no secrets needed.
+   and `cd agent && npm test` — both green, no secrets needed. Contract tests additionally need a C toolchain (Linux: build-essential; Windows: MSVC Build Tools + NASM); without one cargo test fails while building ws-lc-sys.
 2. **Judge's own testnet wallet:** use a *named* testnet account (only the
    owner can create its sub-accounts, and implicit hex accounts cannot have
    sub-accounts) with the `near` CLI installed. Set `OWNER_ACCOUNT_ID` in
