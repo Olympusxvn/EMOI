@@ -277,7 +277,7 @@ impl Contract {
             policy.current_day = today;
         }
         require!(
-            yocto(amount) <= yocto(policy.daily_limit) - yocto(policy.spent_today),
+            yocto(amount) <= yocto(policy.daily_limit).saturating_sub(yocto(policy.spent_today)),
             "PolicyViolation: ExceedsDailyLimit"
         );
         let owner = agent.owner.clone();
@@ -291,8 +291,7 @@ impl Contract {
             "PolicyViolation: InsufficientVaultBalance"
         );
         // Update state BEFORE the transfer promise.
-        policy.spent_today =
-            NearToken::from_yoctonear(yocto(policy.spent_today) + yocto(amount));
+        policy.spent_today = NearToken::from_yoctonear(yocto(policy.spent_today) + yocto(amount));
         self.policies.insert(agent_id.clone(), policy);
         self.ledgers.insert(
             owner,
@@ -303,7 +302,9 @@ impl Contract {
         // and fields below are the contract's public event contract.
         env::log_str(&format!(
             "EVENT_JSON:{{\"standard\":\"emoi\",\"version\":\"1.0.0\",\"event\":\"transfer_succeeded\",\"data\":{{\"agent\":\"{}\",\"recipient\":\"{}\",\"amount\":\"{}\"}}}}",
-            agent_id, recipient, yocto(amount)
+            agent_id,
+            recipient,
+            yocto(amount)
         ));
         Promise::new(recipient).transfer(amount)
     }
@@ -380,6 +381,28 @@ mod tests {
         testing_env!(builder.build());
     }
 
+    /// Assert a call reverts with a panic message containing `expected`.
+    /// Revert tests must prove the NAMED reason, not just any panic.
+    fn expect_violation<F>(f: F, expected: &str)
+    where
+        F: FnOnce() + std::panic::UnwindSafe,
+    {
+        match std::panic::catch_unwind(f) {
+            Ok(_) => panic!("expected revert with '{expected}', call succeeded"),
+            Err(payload) => {
+                let msg = payload
+                    .downcast_ref::<String>()
+                    .cloned()
+                    .or_else(|| payload.downcast_ref::<&str>().map(|s| s.to_string()))
+                    .expect("panic payload was not a string");
+                assert!(
+                    msg.contains(expected),
+                    "expected revert containing '{expected}', got '{msg}'"
+                );
+            }
+        }
+    }
+
     /// Frozen demo policy: max 1 NEAR, daily 2 NEAR, whitelist both vendors.
     fn setup_with_policy_and_funds() -> Contract {
         set_context(owner(), NearToken::from_yoctonear(0), 0);
@@ -401,10 +424,12 @@ mod tests {
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            contract.register_agent(agent());
-        }));
-        assert!(result.is_err(), "second register_agent must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.register_agent(agent());
+            }),
+            "PolicyViolation: AgentAlreadyRegistered",
+        );
     }
 
     #[test]
@@ -413,15 +438,17 @@ mod tests {
         let mut contract = Contract::new();
         contract.register_agent(agent());
         set_context(other(), NearToken::from_yoctonear(0), 0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            contract.set_policy(
-                agent(),
-                NearToken::from_near(1),
-                NearToken::from_near(2),
-                vec![vendor1()],
-            );
-        }));
-        assert!(result.is_err(), "non-owner set_policy must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.set_policy(
+                    agent(),
+                    NearToken::from_near(1),
+                    NearToken::from_near(2),
+                    vec![vendor1()],
+                );
+            }),
+            "PolicyViolation: OnlyOwnerCanSetPolicy",
+        );
     }
 
     #[test]
@@ -429,15 +456,17 @@ mod tests {
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            contract.set_policy(
-                agent(),
-                NearToken::from_near(3),
-                NearToken::from_near(2),
-                vec![vendor1()],
-            );
-        }));
-        assert!(result.is_err(), "max > daily must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.set_policy(
+                    agent(),
+                    NearToken::from_near(3),
+                    NearToken::from_near(2),
+                    vec![vendor1()],
+                );
+            }),
+            "PolicyViolation: InvalidPolicy",
+        );
     }
 
     #[test]
@@ -464,10 +493,12 @@ mod tests {
         let mut contract = setup_with_policy_and_funds();
         // Another account with no ledger balance cannot withdraw.
         set_context(other(), NearToken::from_yoctonear(0), 0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = contract.withdraw(NearToken::from_near(1));
-        }));
-        assert!(result.is_err(), "withdraw from empty ledger must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.withdraw(NearToken::from_near(1));
+            }),
+            "PolicyViolation: InsufficientVaultBalance",
+        );
         // The owner can withdraw from its own ledger.
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         let _ = contract.withdraw(NearToken::from_near(1));
@@ -478,10 +509,12 @@ mod tests {
     fn withdraw_exceeding_balance_reverts() {
         let mut contract = setup_with_policy_and_funds();
         set_context(owner(), NearToken::from_yoctonear(0), 0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = contract.withdraw(NearToken::from_near(6));
-        }));
-        assert!(result.is_err(), "withdraw above balance must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.withdraw(NearToken::from_near(6));
+            }),
+            "PolicyViolation: InsufficientVaultBalance",
+        );
     }
 
     #[test]
@@ -498,10 +531,12 @@ mod tests {
     fn attack_non_whitelisted_recipient_reverts() {
         let mut contract = setup_with_policy_and_funds();
         set_context(agent(), NearToken::from_yoctonear(0), 0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = contract.agent_transfer(attacker(), NearToken::from_near(1));
-        }));
-        assert!(result.is_err(), "non-whitelisted transfer must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.agent_transfer(attacker(), NearToken::from_near(1));
+            }),
+            "PolicyViolation: RecipientNotWhitelisted",
+        );
         assert_eq!(contract.get_balance(owner()), NearToken::from_near(5));
     }
 
@@ -513,10 +548,12 @@ mod tests {
         let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
         let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
         // A third transfer is within max per tx but exceeds the daily limit.
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
-        }));
-        assert!(result.is_err(), "daily-limit transfer must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
+            }),
+            "PolicyViolation: ExceedsDailyLimit",
+        );
         assert_eq!(contract.get_balance(owner()), NearToken::from_near(3));
     }
 
@@ -526,10 +563,12 @@ mod tests {
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         contract.revoke_agent(agent());
         set_context(agent(), NearToken::from_yoctonear(0), 0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
-        }));
-        assert!(result.is_err(), "revoked agent transfer must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
+            }),
+            "PolicyViolation: AgentRevoked",
+        );
     }
 
     #[test]
@@ -537,10 +576,12 @@ mod tests {
         let mut contract = setup_with_policy_and_funds();
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         contract.revoke_agent(agent());
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            contract.register_agent(agent());
-        }));
-        assert!(result.is_err(), "revoked agent re-register must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.register_agent(agent());
+            }),
+            "PolicyViolation: AgentAlreadyRegistered",
+        );
     }
 
     #[test]
@@ -549,10 +590,12 @@ mod tests {
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         contract.pause_agent(agent());
         set_context(agent(), NearToken::from_yoctonear(0), 0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
-        }));
-        assert!(result.is_err(), "paused agent transfer must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
+            }),
+            "PolicyViolation: AgentPaused",
+        );
         // Resume restores the ability to transfer.
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         contract.resume_agent(agent());
@@ -579,10 +622,12 @@ mod tests {
     fn invalid_amount_rejected() {
         let mut contract = setup_with_policy_and_funds();
         set_context(agent(), NearToken::from_yoctonear(0), 0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = contract.agent_transfer(vendor1(), NearToken::from_yoctonear(0));
-        }));
-        assert!(result.is_err(), "zero-amount transfer must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.agent_transfer(vendor1(), NearToken::from_yoctonear(0));
+            }),
+            "PolicyViolation: InvalidAmount",
+        );
     }
 
     #[test]
@@ -605,12 +650,188 @@ mod tests {
         );
         contract.deposit_funds();
         set_context(agent(), NearToken::from_yoctonear(0), 0);
-        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = contract.agent_transfer(
-                vendor1(),
-                NearToken::from_yoctonear(500_000_000_000_000_000_000_000),
-            );
-        }));
-        assert!(result.is_err(), "vault-insufficient transfer must revert");
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.agent_transfer(
+                    vendor1(),
+                    NearToken::from_yoctonear(500_000_000_000_000_000_000_000),
+                );
+            }),
+            "PolicyViolation: InsufficientVaultBalance",
+        );
+    }
+
+    #[test]
+    fn set_policy_whitelist_over_20_reverts() {
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        let mut contract = Contract::new();
+        contract.register_agent(agent());
+        let big: Vec<AccountId> = (0..21)
+            .map(|i| format!("vendor{i:02}.testnet").parse().unwrap())
+            .collect();
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.set_policy(
+                    agent(),
+                    NearToken::from_near(1),
+                    NearToken::from_near(2),
+                    big,
+                );
+            }),
+            "PolicyViolation: InvalidPolicy",
+        );
+    }
+
+    #[test]
+    fn set_policy_zero_max_reverts() {
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        let mut contract = Contract::new();
+        contract.register_agent(agent());
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.set_policy(
+                    agent(),
+                    NearToken::from_yoctonear(0),
+                    NearToken::from_near(2),
+                    vec![vendor1()],
+                );
+            }),
+            "PolicyViolation: InvalidPolicy",
+        );
+    }
+
+    #[test]
+    fn set_policy_zero_daily_reverts() {
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        let mut contract = Contract::new();
+        contract.register_agent(agent());
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.set_policy(
+                    agent(),
+                    NearToken::from_near(1),
+                    NearToken::from_yoctonear(0),
+                    vec![vendor1()],
+                );
+            }),
+            "PolicyViolation: InvalidPolicy",
+        );
+    }
+
+    #[test]
+    fn set_policy_whitelist_deduped() {
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        let mut contract = Contract::new();
+        contract.register_agent(agent());
+        contract.set_policy(
+            agent(),
+            NearToken::from_near(1),
+            NearToken::from_near(2),
+            vec![vendor1(), vendor2(), vendor1()],
+        );
+        let policy = contract.get_policy(agent()).expect("policy must exist");
+        assert!(policy.whitelist == vec![vendor1(), vendor2()]);
+    }
+
+    #[test]
+    fn pause_by_non_owner_reverts() {
+        let mut contract = setup_with_policy_and_funds();
+        set_context(other(), NearToken::from_yoctonear(0), 0);
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.pause_agent(agent());
+            }),
+            "PolicyViolation: OnlyOwnerCanManageAgent",
+        );
+    }
+
+    #[test]
+    fn resume_by_non_owner_reverts() {
+        let mut contract = setup_with_policy_and_funds();
+        set_context(other(), NearToken::from_yoctonear(0), 0);
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.resume_agent(agent());
+            }),
+            "PolicyViolation: OnlyOwnerCanManageAgent",
+        );
+    }
+
+    #[test]
+    fn revoke_by_non_owner_reverts() {
+        let mut contract = setup_with_policy_and_funds();
+        set_context(other(), NearToken::from_yoctonear(0), 0);
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.revoke_agent(agent());
+            }),
+            "PolicyViolation: OnlyOwnerCanManageAgent",
+        );
+    }
+
+    #[test]
+    fn resume_active_agent_reverts() {
+        let mut contract = setup_with_policy_and_funds();
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.resume_agent(agent());
+            }),
+            "PolicyViolation: AgentNotPaused",
+        );
+    }
+
+    #[test]
+    fn revoke_twice_reverts() {
+        let mut contract = setup_with_policy_and_funds();
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        contract.revoke_agent(agent());
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.revoke_agent(agent());
+            }),
+            "PolicyViolation: AgentAlreadyRevoked",
+        );
+    }
+
+    #[test]
+    fn pause_paused_agent_reverts() {
+        let mut contract = setup_with_policy_and_funds();
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        contract.pause_agent(agent());
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.pause_agent(agent());
+            }),
+            "PolicyViolation: AgentNotActive",
+        );
+    }
+
+    #[test]
+    fn lowered_daily_below_spent_reverts_named() {
+        // C3 regression: set_policy preserves spent_today, so lowering daily
+        // below spent must yield ExceedsDailyLimit — never an arithmetic panic.
+        let mut contract = setup_with_policy_and_funds();
+        set_context(agent(), NearToken::from_yoctonear(0), 0);
+        let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
+        // spent_today is now 1 NEAR; lower the policy under it
+        // (max 0.5 <= daily 0.5 stays a valid policy).
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        contract.set_policy(
+            agent(),
+            NearToken::from_yoctonear(500_000_000_000_000_000_000_000),
+            NearToken::from_yoctonear(500_000_000_000_000_000_000_000),
+            vec![vendor1()],
+        );
+        set_context(agent(), NearToken::from_yoctonear(0), 0);
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                let _ = contract.agent_transfer(
+                    vendor1(),
+                    NearToken::from_yoctonear(100_000_000_000_000_000_000_000),
+                );
+            }),
+            "PolicyViolation: ExceedsDailyLimit",
+        );
     }
 }

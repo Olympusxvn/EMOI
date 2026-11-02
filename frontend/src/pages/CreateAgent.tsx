@@ -4,15 +4,16 @@ import { POLICY_CONTRACT_ID, slugify } from "../lib/near";
 import { AgentIdDisplay } from "../components/common";
 
 export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: string) => void }) {
-  const { signedAccountId, signAndSendTransactions } = useNearWallet();
+  const { signedAccountId, signAndSendTransactions, getAccessKeyList } = useNearWallet();
   const [name, setName] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const slug = slugify(name);
-  const agentId = `${slug}.emoi.testnet`;
-  const scriptCommand = `cd agent && npm run create-agent -- --name ${slug} --set-policy --max 1 --daily 2 --whitelist emoi01.testnet,emoi02.testnet`;
+  const parentId = (signedAccountId || "emoi.testnet").toLowerCase();
+  const agentId = `${slug}.${parentId}`;
+  const scriptCommand = `cd agent && npm run create-agent -- --name ${slug} --set-policy --max 1 --daily 2 --whitelist emoi01.testnet,emoi02.testnet --deposit 5`;
 
   const createWithWallet = async () => {
     if (!signedAccountId) {
@@ -23,22 +24,40 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
     setError(null);
     setMessage(null);
     try {
-      // Wallet-signed sub-account creation. If the wallet or connector
-      // does not support these actions, the error below shows the
-      // honest script fallback instead of a faked creation.
+      // The new account must have a usable full-access key or nobody can
+      // ever sign for it. Reuse the signer's first full-access key (public
+      // key only, read from chain): the owner demonstrably controls the
+      // keys on their own account.
+      const keyList = await getAccessKeyList(signedAccountId);
+      const fullKey = keyList.keys.find(
+        (k) => k.access_key.permission === "FullAccess",
+      );
+      if (!fullKey) {
+        setError(
+          "Your wallet account has no full-access key, so the new agent account would have no usable key. Use the script command below instead.",
+        );
+        return;
+      }
       const outcomes = await signAndSendTransactions({
         transactions: [
           {
             receiverId: agentId,
             actions: [
               { type: "CreateAccount" },
+              {
+                type: "AddKey",
+                params: {
+                  publicKey: fullKey.public_key,
+                  accessKey: { permission: "FullAccess" },
+                },
+              },
               { type: "Transfer", params: { deposit: "500000000000000000000000" } },
             ],
           },
         ],
       });
       setMessage(
-        `Wallet creation transaction sent (${outcomes.length} outcome(s)). Now register the agent and set its policy from the Agent Detail page, or run the script below to finish the FCK and registration steps.`,
+        `Created ${agentId} with your wallet key (full access, ${outcomes.length} outcome(s)). Still missing: FCK, registration, funding, policy. To finish: copy your owner key file to ~/.near-credentials/testnet/${agentId}.json with account_id set to ${agentId}, then run the script below (it skips creation and does the rest).`,
       );
     } catch (e) {
       setError(
@@ -69,7 +88,8 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
         </div>
         <p style={{ color: "#A3A3A3", fontSize: 13 }}>
           If this ID already exists or is revoked, choose a different name. No numeric suffix
-          is added automatically.
+          is added automatically. Requires a named testnet account: sub-accounts
+          of implicit (hex) accounts cannot be created.
         </p>
 
         <h2 style={{ fontSize: 18, marginTop: 24 }}>What happens next?</h2>
@@ -92,7 +112,8 @@ export default function CreateAgent({ onOpenAgent }: { onOpenAgent: (agentId: st
 
         <h2 style={{ fontSize: 18, marginTop: 24 }}>Script fallback (same frozen steps)</h2>
         <p style={{ color: "#D4D4D4", fontSize: 14 }}>
-          If wallet creation is not available, run this from the repo root. It is idempotent
+          If wallet creation is not available, set OWNER_ACCOUNT_ID in .env to the same
+          account and run this from the repo root. It is idempotent
           and skips steps that already exist.
         </p>
         <pre style={{ background: "#000000", border: "1px solid #262626", borderRadius: 16, padding: 12, overflowX: "auto", fontSize: 13 }}>

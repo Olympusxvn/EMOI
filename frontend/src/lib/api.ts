@@ -22,6 +22,17 @@ export async function checkAgentService(): Promise<boolean> {
   }
 }
 
+export async function checkSignerReady(): Promise<boolean> {
+  try {
+    const res = await fetch(`${AGENT_SERVICE_URL}/health`, { signal: AbortSignal.timeout(3000) });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { signerReady?: boolean };
+    return data.signerReady === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function fetchActivity(): Promise<ActivityEntry[]> {
   const res = await fetch(`${AGENT_SERVICE_URL}/activity`, { signal: AbortSignal.timeout(10000) });
   if (!res.ok) throw new Error("agent service /activity failed");

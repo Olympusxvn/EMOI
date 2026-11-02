@@ -17,6 +17,7 @@
 //
 // Usage: npx tsx scripts/preflight.ts
 
+import bs58 from "bs58";
 import { config } from "../src/config.js";
 import { createViewNear } from "../src/nearClient.js";
 import { execFileSync, spawnSync } from "node:child_process";
@@ -92,6 +93,13 @@ async function main() {
     const tracked = execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf-8" });
     const bad = tracked.split("\n").filter((l) => l === ".env" || (l.endsWith(".env") && !l.endsWith(".env.example")));
     add("no tracked .env", bad.length ? "FAIL" : "PASS", bad.length ? `tracked: ${bad.join(", ")}` : "only .env.example tracked (or none)");
+    const trackedLogs = tracked.split("\n").filter((l) => l === "activity.log" || l === "research.jsonl" || l.endsWith(".log"));
+    add("no tracked logs", trackedLogs.length ? "FAIL" : "PASS", trackedLogs.length ? `tracked: ${trackedLogs.join(", ")}` : "no logs tracked");
+    const everEnv = execFileSync("git", ["log", "--all", "--diff-filter=A", "--name-only", "--format=", "--", ".env"], { cwd: repoRoot, encoding: "utf-8" }).trim();
+    add("no .env in history", everEnv ? "FAIL" : "PASS", everEnv ? ".env was tracked in history — assume secrets leaked" : ".env never tracked");
+    const hist = execFileSync("git", ["log", "-p", "--all", "--", ".", ":!agent/scripts/preflight.ts"], { cwd: repoRoot, encoding: "utf-8", maxBuffer: 50 * 1024 * 1024 });
+    const histHits = secretPatterns.filter((re) => re.test(hist)).length;
+    add("history secrets scan", histHits ? "FAIL" : "PASS", histHits ? "private-key patterns found in git history" : "no private-key patterns in history");
     const status = execFileSync("git", ["status", "--porcelain"], { cwd: repoRoot, encoding: "utf-8" }).trim();
     add(
       "unpushed local changes",
@@ -106,6 +114,8 @@ async function main() {
   const gi = fs.existsSync(path.join(repoRoot, ".gitignore")) ? fs.readFileSync(path.join(repoRoot, ".gitignore"), "utf-8") : "";
   const missing = [".env", "node_modules", "target", "dist"].filter((s) => !gi.includes(s));
   add(".gitignore coverage", missing.length ? "FAIL" : "PASS", missing.length ? `missing: ${missing.join(", ")}` : ".env, node_modules, target, dist covered");
+  const logCovered = ["activity.log", "research.jsonl", "*.log"].every((s) => gi.includes(s));
+  add("log files ignored", logCovered ? "PASS" : "FAIL", logCovered ? "activity.log, research.jsonl, *.log covered" : "add log files to .gitignore");
 
   // LICENSE (MIT, decided 2026-11-01) must exist before the flip.
   const lic = path.join(repoRoot, "LICENSE");
@@ -118,6 +128,8 @@ async function main() {
   add("agent tests", agentTest.ok ? "PASS" : "FAIL", agentTest.ok ? "npm test green" : agentTest.out);
   const frontendBuild = runCmd("npm", ["run", "build"], path.join(repoRoot, "frontend"));
   add("frontend build", frontendBuild.ok ? "PASS" : "FAIL", frontendBuild.ok ? "tsc + vite build green" : frontendBuild.out);
+  const frontendLint = runCmd("npm", ["run", "lint"], path.join(repoRoot, "frontend"));
+  add("frontend lint", frontendLint.ok ? "PASS" : "FAIL", frontendLint.ok ? "oxlint clean" : frontendLint.out);
 
   // 3. On-chain state (views only).
   try {
@@ -161,6 +173,66 @@ async function main() {
     );
   } catch {
     add("main account keys", "SKIP", "near-cli list-keys failed; check manually");
+  }
+
+  // FCK allowance gauge (pre-deletion safety, read-only). A deleted full key
+  // cannot come back and reissue becomes impossible, so the flip must not
+  // happen with an almost-empty FCK. Threshold rationale: a transfer burns
+  // roughly ~0.001 NEAR of allowance, so 0.1 NEAR covers ~100 judging-week
+  // transactions with margin.
+  try {
+    const fckPriv = process.env.AGENT_FCK_PRIVATE_KEY ?? "";
+    if (!fckPriv) {
+      add("fck allowance", "SKIP", "no AGENT_FCK_PRIVATE_KEY in .env; cannot gauge (demos need it)");
+    } else {
+      const raw = bs58.decode(fckPriv.replace(/^ed25519:/, ""));
+      const fckPub = `ed25519:${bs58.encode(raw.slice(32))}`;
+      const res = await fetch("https://rpc.testnet.near.org", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(15000),
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: "emoi-preflight",
+          method: "query",
+          params: {
+            request_type: "view_access_key",
+            account_id: config.agentAccountId,
+            public_key: fckPub,
+            finality: "final",
+          },
+        }),
+      });
+      const data = (await res.json()) as {
+        error?: { message?: string };
+        result?: { permission?: unknown };
+      };
+      if (data.error) throw new Error(data.error.message ?? "RPC error");
+      const perm = data.result?.permission as
+        | string
+        | { FunctionCall?: { allowance?: string; receiver_id?: string; method_names?: string[] } }
+        | undefined;
+      if (typeof perm === "string") {
+        add("fck allowance", "WARN", `key ${fckPub} has ${perm} permission, expected a function-call key`);
+      } else {
+        const fc = typeof perm === "object" && perm !== null ? perm.FunctionCall : undefined;
+        const allowance = fc?.allowance ? BigInt(fc.allowance) : 0n;
+        const methods: unknown = fc?.method_names;
+        const scopeOk =
+          fc?.receiver_id === config.policyContractId &&
+          Array.isArray(methods) &&
+          methods.length === 1 &&
+          methods[0] === "agent_transfer";
+        const thresh = 100000000000000000000000n; // 0.1 NEAR
+        add(
+          "fck allowance",
+          allowance >= thresh && scopeOk ? "PASS" : "WARN",
+          `allowance=${allowance} yocto (need >= 0.1 NEAR), scope=${scopeOk ? "agent_transfer-only on policy" : "UNEXPECTED " + JSON.stringify(fc)} — reissue BEFORE deleting the full key if low`,
+        );
+      }
+    }
+  } catch (e) {
+    add("fck allowance", "SKIP", `RPC/key read failed: ${String(e).slice(0, 160)}`);
   }
 
   // 4. README claim checks.

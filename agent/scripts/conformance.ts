@@ -20,6 +20,8 @@
 // Exit code 0 = all PASS (or SKIP); 1 = any FAIL.
 
 import { config, requireAgentFck } from "../src/config.js";
+import { fckPrivateKeyFor } from "../src/fck.js";
+import { nearToYocto } from "../src/validation.js";
 import { createViewNear } from "../src/nearClient.js";
 import { Near } from "near-kit";
 import fs from "node:fs";
@@ -32,10 +34,6 @@ const FCKONLY = "fckonly-test.emoi.testnet";
 const AUDIT_AGENT = "audit2-test.emoi.testnet";
 const FCKONLY_FCK_PUB = "ed25519:2EC21JE2U9sYZpbkuFJsEtnSm7HsDb7ijBLcb48qKwDc";
 
-function toYocto(near: string): string {
-  const [whole, frac = ""] = near.split(".");
-  return (BigInt(whole) * 10n ** 24n + BigInt((frac + "0".repeat(24)).slice(0, 24) || "0")).toString();
-}
 
 function keyFileFor(agentId: string, publicKey: string): string {
   const dir = path.join(os.homedir(), ".near-credentials", "testnet", agentId);
@@ -46,16 +44,8 @@ function keyFileFor(agentId: string, publicKey: string): string {
   return data.private_key;
 }
 
-function auditFckPrivateKey(): string {
-  const dir = path.join(os.homedir(), ".near-credentials", "testnet", AUDIT_AGENT);
-  const full = JSON.parse(
-    fs.readFileSync(path.join(os.homedir(), ".near-credentials", "testnet", `${AUDIT_AGENT}.json`), "utf-8"),
-  ) as { public_key: string };
-  for (const f of fs.readdirSync(dir)) {
-    const d = JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8")) as { public_key: string; private_key: string };
-    if (d.public_key !== full.public_key) return d.private_key;
-  }
-  throw new Error("audit agent FCK not found in keychain");
+async function auditFckPrivateKey(): Promise<string> {
+  return (await fckPrivateKeyFor(AUDIT_AGENT)).privateKey;
 }
 
 function nearFor(agentId: string, privateKey: string): Near {
@@ -118,7 +108,7 @@ async function main() {
     { name: "revoked FCK-only direct", near: fckonlyNear, recipient: "emoi01.testnet", amount: "0.5", expected: "AgentRevoked" },
   ];
   for (const c of transferCases) {
-    const r = await directTransfer(c.near, c.recipient, toYocto(c.amount));
+    const r = await directTransfer(c.near, c.recipient, nearToYocto(c.amount).toString());
     const liveOk = !r.ok && r.error.includes(`PolicyViolation: ${c.expected}`);
     const inContract = libRs.includes(`PolicyViolation: ${c.expected}`);
     const inReadme = readme.includes(`PolicyViolation: ${c.expected}`);
@@ -140,7 +130,7 @@ async function main() {
     await mainNear.call(
       POLICY,
       "set_policy",
-      { agent_account_id: MAIN, max_per_tx: toYocto("1"), daily_limit: toYocto("2"), whitelist: ["emoi01.testnet"] },
+      { agent_account_id: MAIN, max_per_tx: nearToYocto("1").toString(), daily_limit: nearToYocto("2").toString(), whitelist: ["emoi01.testnet"] },
       { gas: "100 Tgas", attachedDeposit: 0n },
     );
   } catch (e) {
@@ -161,8 +151,8 @@ async function main() {
   const spent = BigInt((auditBefore.policy?.spent_today as string) ?? "0");
   const daily = BigInt((auditBefore.policy?.daily_limit as string) ?? "0");
   if (auditBefore.policy && daily > 0n && spent >= daily) {
-    const auditNear = nearFor(AUDIT_AGENT, auditFckPrivateKey());
-    const r = await directTransfer(auditNear, "emoi01.testnet", toYocto("1"));
+    const auditNear = nearFor(AUDIT_AGENT, await auditFckPrivateKey());
+    const r = await directTransfer(auditNear, "emoi01.testnet", nearToYocto("1").toString());
     const liveOk = !r.ok && r.error.includes("PolicyViolation: ExceedsDailyLimit");
     results.push({
       name: "daily-limit direct (guarded)",

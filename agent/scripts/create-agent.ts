@@ -1,6 +1,6 @@
 // Create Agent script (T2.1, owner-operated).
 // Steps, in the frozen order (STRATEGY 9.1):
-//   1. Create <slug>.emoi.testnet, funded only for gas/storage.
+//   1. Create <slug>.<OWNER_ACCOUNT_ID>, funded only for gas/storage.
 //   2. Add an FCK: receiver = policy contract, method = agent_transfer only.
 //   3. Register the agent on-chain.
 //   4. Optionally top the shared owner vault up to --deposit.
@@ -23,6 +23,8 @@ import os from "node:os";
 import path from "node:path";
 import { config as loadDotenv } from "dotenv";
 import bs58 from "bs58";
+import { nearToYocto } from "../src/validation.js";
+import { fckPrivateKeyFor } from "../src/fck.js";
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../..");
@@ -71,7 +73,8 @@ async function main() {
   const slug = slugify(name);
   const ownerId = process.env.OWNER_ACCOUNT_ID ?? "emoi.testnet";
   const policyId = process.env.POLICY_CONTRACT_ID ?? "policy.emoi.testnet";
-  const agentId = `${slug}.emoi.testnet`;
+  // Namespace derives from the owner: judges create under their own account.
+  const agentId = `${slug}.${ownerId.toLowerCase()}`;
   const initialBalance = argValue("--initial-balance", "0.5")!;
   const fckAllowance = argValue("--fck-allowance", "0.25")!;
   const depositTarget = Number(argValue("--deposit", "0")!);
@@ -151,22 +154,12 @@ async function main() {
     const fckLine = /^AGENT_FCK_PRIVATE_KEY=.*$/m.exec(envText);
     const configuredAgent = process.env.AGENT_ACCOUNT_ID ?? "agent.emoi.testnet";
     if (agentId === configuredAgent && (!fckLine || fckLine[0] === "AGENT_FCK_PRIVATE_KEY=")) {
-      const keyDir = path.join(os.homedir(), ".near-credentials", "testnet", agentId);
-      const files = fs.existsSync(keyDir) ? fs.readdirSync(keyDir) : [];
-      // The FCK key file is the one whose public key is not the full key.
-      const fullKey = JSON.parse(fs.readFileSync(agentKeyFile, "utf-8")) as { public_key: string };
+      // Picked by on-chain scope (receiver + method), never by folder order.
       let fckPrivate: string | undefined;
-      for (const file of files) {
-        try {
-          const data = JSON.parse(fs.readFileSync(path.join(keyDir, file), "utf-8")) as {
-            public_key: string;
-            private_key: string;
-          };
-          if (data.public_key !== fullKey.public_key) {
-            fckPrivate = data.private_key;
-            break;
-          }
-        } catch { /* ignore non-key files */ }
+      try {
+        fckPrivate = (await fckPrivateKeyFor(agentId)).privateKey;
+      } catch {
+        // Leave envFck unset below: rerunning after fixing keys backfills it.
       }
       if (fckPrivate) {
         const updated = envText.replace(
@@ -235,13 +228,13 @@ async function main() {
 
     // 5. Set policy, if requested.
     if (doSetPolicy) {
-      const toYocto = (n: string) => (BigInt(n) * 10n ** 24n).toString();
+
       const pol = await runNear([
         "contract", "call-function", "as-transaction", policyId, "set_policy",
         "json-args", JSON.stringify({
           agent_account_id: agentId,
-          max_per_tx: toYocto(maxNear),
-          daily_limit: toYocto(dailyNear),
+          max_per_tx: nearToYocto(maxNear).toString(),
+          daily_limit: nearToYocto(dailyNear).toString(),
           whitelist,
         }),
         "prepaid-gas", "100 Tgas", "attached-deposit", "0 NEAR",

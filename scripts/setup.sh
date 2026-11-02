@@ -11,6 +11,12 @@ echo "Checking Node..."
 node --version
 echo "Checking Rust..."
 cargo --version
+echo "Checking near CLI (needed for create-agent / owner scripts)..."
+if command -v near >/dev/null 2>&1; then
+  near --version
+else
+  echo "WARNING: 'near' CLI not found. Owner scripts (create-agent, pause-demo) need it: https://github.com/near/near-cli-rs"
+fi
 
 echo "Installing agent dependencies..."
 cd agent && npm ci && cd ..

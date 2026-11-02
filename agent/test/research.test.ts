@@ -1,6 +1,7 @@
 // Research slice tests (2026-11-02). No chain, no network, no keys:
 // negotiation is pure, and runResearch is driven by mock pay/report.
 import assert from "node:assert";
+import { nearToYocto } from "../src/validation.js";
 import {
   COMPUTE_COST_NEAR,
   DATA_COST_NEAR,
@@ -98,6 +99,11 @@ function baseJob(over: Partial<ResearchJob> = {}): ResearchJob {
   assert.equal(done.status, "completed");
   assert.equal(done.report, null);
   assert.ok(done.reportNote.includes("still happened"));
+}
+
+// MIN price is derived from vendor costs, not a second hardcoded number.
+{
+  assert.equal(nearToYocto(MIN_PRICE_NEAR), nearToYocto(DATA_COST_NEAR) + nearToYocto(COMPUTE_COST_NEAR));
 }
 
 console.log("research tests pass");

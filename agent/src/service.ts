@@ -7,7 +7,7 @@
 // failure without touching the chain.
 
 import { config } from "./config.js";
-import { parseIntent } from "./parser.js";
+import { parseIntent, type ParseResult } from "./parser.js";
 import { getLlmIntent } from "./llm.js";
 import {
   validateBeforeSigning,
@@ -108,12 +108,76 @@ export async function realSigner(
   );
 }
 
+/**
+ * LLM intent resolution: deterministic harness (1a/1b/1c) around an injected
+ * LLM call. Extracted from processIntent so unit tests can drive it offline
+ * with a mock. Never signs; returns a ParseResult only.
+ */
+export async function resolveLlmIntent(
+  text: string,
+  llmFn: (userText: string) => Promise<ParseResult | null>,
+): Promise<ParseResult> {
+  // 1a. Multi-intent pre-check: if the raw user text contains more
+  // than one distinct recipient or more than one distinct amount,
+  // reject before any LLM call. The model must never be allowed to
+  // arbitrarily pick one of several intents.
+  const rawRecipients = new Set(
+    (text.match(/[a-z0-9][a-z0-9._-]*\.(?:testnet|near)/gi) ?? []).map(
+      (r) => r.toLowerCase(),
+    ),
+  );
+  // Distinct amounts by exact yocto value, so "0.5" and "0.50"
+  // count as one amount, not two. Only numbers directly before
+  // "NEAR" count as amounts: digits inside an account name such
+  // as "emoi01" must not be mistaken for an amount.
+  const rawAmountYocto = new Set<string>();
+  for (const m of text.matchAll(
+    /([0-9]+(?:\.[0-9]+)?)\s+NEAR/gi,
+  )) {
+    try {
+      rawAmountYocto.add(nearToYocto(m[1]).toString());
+    } catch {
+      // Unusable amounts are rejected by the parser and the
+      // grounding check below.
+    }
+  }
+  if (rawRecipients.size > 1 || rawAmountYocto.size > 1) {
+    return { ok: false, reason: "ParseFailed" };
+  }
+  const llmResult = await llmFn(text);
+  // 1b. Strict LLM mode: a missing LLM result (no key, no output)
+  // is a failure, never a silent fallback to the parser result.
+  // Parser-only mode (useLlm false) is the only path that works
+  // without a key.
+  if (llmResult === null) {
+    return { ok: false, reason: "ParseFailed" };
+  }
+  // 1c. Grounding check: an LLM-produced intent is only accepted
+  // if its recipient appears verbatim in the user text and its
+  // amount matches a number in the user text. A hallucinated
+  // recipient or amount is rejected here, even if the model
+  // ignored its system prompt.
+  if (llmResult.ok) {
+    const recipientInText = rawRecipients.has(
+      llmResult.intent.recipient.toLowerCase(),
+    );
+    const amountInText = rawAmountYocto.has(
+      llmResult.intent.amountYocto.toString(),
+    );
+    if (!recipientInText || !amountInText) {
+      return { ok: false, reason: "ParseFailed" };
+    }
+  }
+  return llmResult;
+}
+
 export async function processIntent(args: {
   text: string;
   useLlm: boolean;
   agentAccountId?: string;
   signer?: Signer;
   source?: "parser" | "llm" | "attack-demo";
+  llmFn?: (userText: string) => Promise<ParseResult | null>;
 }): Promise<TransferResult> {
   const agentAccountId = args.agentAccountId ?? config.agentAccountId;
   const source = args.source ?? (args.useLlm ? "llm" : "parser");
@@ -122,64 +186,9 @@ export async function processIntent(args: {
   // do not depend on the model obeying its system prompt.
   let parsed = parseIntent(args.text);
   if (args.useLlm) {
-    // 1a. Multi-intent pre-check: if the raw user text contains more
-    // than one distinct recipient or more than one distinct amount,
-    // reject before any LLM call. The model must never be allowed to
-    // arbitrarily pick one of several intents.
-    const rawRecipients = new Set(
-      (args.text.match(/[a-z0-9][a-z0-9._-]*\.(?:testnet|near)/gi) ?? []).map(
-        (r) => r.toLowerCase(),
-      ),
-    );
-    // Distinct amounts by exact yocto value, so "0.5" and "0.50"
-    // count as one amount, not two. Only numbers directly before
-    // "NEAR" count as amounts: digits inside an account name such
-    // as "emoi01" must not be mistaken for an amount.
-    const rawAmountYocto = new Set<string>();
-    for (const m of args.text.matchAll(
-      /([0-9]+(?:\.[0-9]+)?)\s+NEAR/gi,
-    )) {
-      try {
-        rawAmountYocto.add(nearToYocto(m[1]).toString());
-      } catch {
-        // Unusable amounts are rejected by the parser and the
-        // grounding check below.
-      }
-    }
-    if (rawRecipients.size > 1 || rawAmountYocto.size > 1) {
-      parsed = { ok: false, reason: "ParseFailed" };
-    } else {
-      const llmResult = await getLlmIntent(
-        args.text,
-        config.nearAiCloudApiKey,
-        config.nearAiModel,
-      );
-      // 1b. Strict LLM mode: a missing LLM result (no key, no output)
-      // is a failure, never a silent fallback to the parser result.
-      // Parser-only mode (useLlm false) is the only path that works
-      // without a key.
-      if (llmResult === null) {
-        parsed = { ok: false, reason: "ParseFailed" };
-      } else {
-        parsed = llmResult;
-      }
-      // 1c. Grounding check: an LLM-produced intent is only accepted
-      // if its recipient appears verbatim in the user text and its
-      // amount matches a number in the user text. A hallucinated
-      // recipient or amount is rejected here, even if the model
-      // ignored its system prompt.
-      if (parsed.ok) {
-        const recipientInText = rawRecipients.has(
-          parsed.intent.recipient.toLowerCase(),
-        );
-        const amountInText = rawAmountYocto.has(
-          parsed.intent.amountYocto.toString(),
-        );
-        if (!recipientInText || !amountInText) {
-          parsed = { ok: false, reason: "ParseFailed" };
-        }
-      }
-    }
+    const llm =
+      args.llmFn ?? ((t: string) => getLlmIntent(t, config.nearAiCloudApiKey, config.nearAiModel));
+    parsed = await resolveLlmIntent(args.text, llm);
   }
   if (!parsed.ok) {
     const result: TransferResult = {

@@ -47,6 +47,7 @@ const server = http.createServer(async (req, res) => {
       agent: config.agentAccountId,
       policyContract: config.policyContractId,
       network: config.network,
+      signerReady: config.agentFckPrivateKey.length > 0,
     }));
     return;
   }
@@ -164,6 +165,13 @@ const server = http.createServer(async (req, res) => {
         if (job.status === "walked-away" || job.status === "completed" || job.status === "failed") {
           res.statusCode = 400;
           res.end(JSON.stringify({ error: `job already ${job.status}` }));
+          return;
+        }
+        // "accepted" means a run is in flight (runs always end terminal), so
+        // this rejects both a concurrent double-accept and a mid-run decline.
+        if (job.status === "accepted") {
+          res.statusCode = 409;
+          res.end(JSON.stringify({ error: "job already running" }));
           return;
         }
         if (parsed.decision === "decline") {

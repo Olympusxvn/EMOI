@@ -11,6 +11,7 @@ import {
 import { fetchAgentData, pollAgentStatus, txHashOf, type AgentData } from "../lib/agentData";
 import {
   checkAgentService,
+  checkSignerReady,
   fetchActivity,
   postAttackDemo,
   postTransfer,
@@ -29,6 +30,7 @@ export default function AgentDetail({
   const [data, setData] = useState<AgentData | null>(null);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [serviceOk, setServiceOk] = useState(false);
+  const [signerReady, setSignerReady] = useState(false);
   const [transferText, setTransferText] = useState("send 0.5 NEAR to emoi01.testnet");
   const [receipt, setReceipt] = useState<{
     recipient: string;
@@ -53,6 +55,7 @@ export default function AgentDetail({
       // Activity needs the local agent service; contract views still work.
     }
     setServiceOk(await checkAgentService());
+    setSignerReady(await checkSignerReady());
   };
 
   useEffect(() => {
@@ -250,7 +253,7 @@ export default function AgentDetail({
           onChange={(e) => setTransferText(e.target.value)}
           style={{ flex: 1, minWidth: 280, background: "#111111", border: "1px solid #262626", color: "#FFFFFF", borderRadius: 16, padding: "10px 12px" }}
         />
-        <button className="btn-primary" disabled={busy || !serviceOk} onClick={runTransfer}>
+        <button className="btn-primary" disabled={busy || !serviceOk || !signerReady} onClick={runTransfer}>
           Send via agent
         </button>
       </div>
@@ -272,6 +275,11 @@ export default function AgentDetail({
       {!serviceOk && (
         <p style={{ color: "#F59E0B", fontSize: 13 }}>
           Transfer and attack demo require the local agent service (npm run server in agent/). The buttons are disabled until it is reachable.
+        </p>
+      )}
+      {serviceOk && !signerReady && (
+        <p style={{ color: "#F59E0B", fontSize: 13 }}>
+          Agent service is reachable but has no signing key (AGENT_FCK_PRIVATE_KEY is not set). Send via agent is disabled; the attack demo still works.
         </p>
       )}
 

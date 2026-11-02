@@ -39,11 +39,12 @@
 // local-demo tool, never a hosted service.
 
 import { config } from "./config.js";
+import { fckPrivateKeyFor } from "./fck.js";
 import { processIntent, type TransferResult } from "./service.js";
-import { nearToYocto } from "./validation.js";
+import { nearToYocto, yoctoToNear } from "./validation.js";
 import { Near } from "near-kit";
 import fs from "node:fs";
-import os from "node:os";
+
 import path from "node:path";
 
 export const RESEARCH_AGENT_ID = process.env.RESEARCH_AGENT_ID ?? "research.emoi.testnet";
@@ -51,9 +52,9 @@ export const DATA_VENDOR = "emoi02.testnet";
 export const COMPUTE_VENDOR = "emoi01.testnet";
 export const DATA_COST_NEAR = "0.5";
 export const COMPUTE_COST_NEAR = "0.5";
-// Minimum price = vendor costs. Derived, not a second hardcoded number,
+// Minimum price = vendor costs, derived (not a second hardcoded number),
 // so the counter can never drift from what the run actually spends.
-export const MIN_PRICE_NEAR = "1.0";
+export const MIN_PRICE_NEAR = yoctoToNear(nearToYocto(DATA_COST_NEAR) + nearToYocto(COMPUTE_COST_NEAR));
 
 export type ResearchStatus =
   | "countered"
@@ -99,7 +100,8 @@ function yoctoAtLeast(offerNear: string, minNear: string): boolean {
 }
 
 function parseOffer(offerNear: string): void {
-  // Throws on non-numeric, negative, or >24-decimal input (validation).
+  // nearToYocto throws on non-numeric or negative input, and truncates
+  // past 24 decimals.
   const yocto = nearToYocto(offerNear);
   if (yocto < 0n) throw new Error("offer must be >= 0");
 }
@@ -132,24 +134,9 @@ export function negotiate(topic: string, offerNear: string, agent: string): Rese
   };
 }
 
-/** Build a signer for an agent's FCK from the local keychain. */
-export function researchSignerFor(agentId: string) {
-  const dir = path.join(os.homedir(), ".near-credentials", "testnet", agentId);
-  const full = JSON.parse(
-    fs.readFileSync(path.join(os.homedir(), ".near-credentials", "testnet", `${agentId}.json`), "utf-8"),
-  ) as { public_key: string };
-  let fckPrivateKey = "";
-  for (const f of fs.readdirSync(dir)) {
-    const d = JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8")) as {
-      public_key: string;
-      private_key: string;
-    };
-    if (d.public_key !== full.public_key) {
-      fckPrivateKey = d.private_key;
-      break;
-    }
-  }
-  if (!fckPrivateKey) throw new Error(`research agent FCK not found in local keychain for ${agentId}`);
+/** Build a signer for an agent's FCK, picked by on-chain scope. */
+export async function researchSignerFor(agentId: string) {
+  const { privateKey: fckPrivateKey } = await fckPrivateKeyFor(agentId);
   const near = new Near({
     network: config.network,
     privateKey: fckPrivateKey as `ed25519:${string}`,
@@ -181,7 +168,7 @@ export async function realPayVendor(
     text: `send ${amountNear} NEAR to ${recipient}`,
     useLlm: false,
     agentAccountId: agent,
-    signer: researchSignerFor(agent),
+    signer: await researchSignerFor(agent),
     source: "parser",
   });
 }
