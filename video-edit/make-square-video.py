@@ -10,6 +10,7 @@ Slides are silent, 7 seconds each, 49 seconds total.
 Font: DejaVu Sans (clean sans-serif available on this machine; the web
 frontend loads real Inter — see frontend/index.html).
 """
+import os
 import textwrap
 from PIL import Image, ImageDraw, ImageFont
 
@@ -23,9 +24,18 @@ LIGHT = (212, 212, 212)
 GREEN = (0, 236, 151)
 RED = (239, 68, 68)
 
-FONT_DIR = "/usr/share/fonts/truetype/dejavu/"
+WIN_FONTS = {"DejaVuSans-Bold.ttf": "arialbd.ttf", "DejaVuSans.ttf": "arial.ttf", "DejaVuSansMono.ttf": "cour.ttf"}
+def _font_path(name):
+    candidates = ["/usr/share/fonts/truetype/dejavu/" + name,
+                    "/usr/share/fonts/TTF/" + name]
+    if name in WIN_FONTS:
+        candidates.append(os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "Fonts", WIN_FONTS[name]))
+    for p in candidates:
+        if os.path.exists(p):
+            return p
+    raise FileNotFoundError(name)
 def font(name, size):
-    return ImageFont.truetype(FONT_DIR + name, size)
+    return ImageFont.truetype(_font_path(name), size)
 
 F_KICKER = font("DejaVuSans-Bold.ttf", 28)
 F_TITLE = font("DejaVuSans-Bold.ttf", 72)

@@ -24,3 +24,5 @@ dist/
 .vscode/
 video-edit/slides/
 research.jsonl
+# local X-post render, never push
+video-edit/*.mp4
