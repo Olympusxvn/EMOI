@@ -29,6 +29,15 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 type Verdict = "PASS" | "WARN" | "FAIL" | "SKIP";
 type Check = { name: string; verdict: Verdict; detail: string };
+
+export function nonExecutableShFiles(lsFilesStaged: string): string[] {
+  return lsFilesStaged
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.endsWith(".sh"))
+    .filter((l) => !l.startsWith("100755"))
+    .map((l) => l.split("\t")[1] ?? l);
+}
 const checks: Check[] = [];
 function add(name: string, verdict: Verdict, detail: string) {
   checks.push({ name, verdict, detail });
@@ -106,6 +115,9 @@ async function main() {
     const histHits = secretPatterns.filter((re) => re.test(hist)).length;
     add("history secrets scan", histHits ? "FAIL" : "PASS", histHits ? "private-key patterns found in git history" : "no private-key patterns in history");
     const status = execFileSync("git", ["status", "--porcelain"], { cwd: repoRoot, encoding: "utf-8" }).trim();
+    const shModes = execFileSync("git", ["ls-files", "-s", "--", "*.sh"], { cwd: repoRoot, encoding: "utf-8" });
+    const noExecSh = nonExecutableShFiles(shModes);
+    add("shell scripts executable", noExecSh.length ? "FAIL" : "PASS", noExecSh.length ? `missing +x in git index: ${noExecSh.join(", ")}` : "all tracked .sh are 100755");
     add(
       "unpushed local changes",
       status ? "WARN" : "PASS",
@@ -270,7 +282,7 @@ async function main() {
   if (failed > 0) process.exit(1);
 }
 
-main().catch((e: unknown) => {
+if (["preflight.ts", "preflight.js"].includes(path.basename(process.argv[1] ?? ""))) main().catch((e: unknown) => {
   console.error(e instanceof Error ? e.message : String(e));
   process.exit(1);
 });

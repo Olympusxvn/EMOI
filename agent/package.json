@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "tsx test/validation.test.ts && tsx test/parser.test.ts && tsx test/research.test.ts && tsx test/llm.test.ts && tsx test/keyfile.test.ts",
+    "test": "tsx test/validation.test.ts && tsx test/parser.test.ts && tsx test/research.test.ts && tsx test/llm.test.ts && tsx test/keyfile.test.ts && tsx test/preflight.test.ts",
     "demo:valid": "tsx scripts/demo-valid.ts",
     "demo:attack": "tsx scripts/demo-attack.ts",
     "demo:pause": "tsx scripts/pause-demo.ts",

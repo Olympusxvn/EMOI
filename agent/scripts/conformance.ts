@@ -225,7 +225,7 @@ async function main() {
   if (failed > 0) process.exit(1);
 }
 
-if (path.basename(process.argv[1] ?? "").startsWith("conformance.")) main().catch((e: unknown) => {
+if (["conformance.ts", "conformance.js"].includes(path.basename(process.argv[1] ?? ""))) main().catch((e: unknown) => {
   console.error(e instanceof Error ? e.message : String(e));
   process.exit(1);
 });

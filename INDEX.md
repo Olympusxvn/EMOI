@@ -10,7 +10,7 @@
 | `agent/scripts/demo-attack.ts` | — | demo:attack (T2.7). Runs both frozen attacks through the REAL |
 | `agent/scripts/demo-valid.ts` | — | demo:valid (T2.6). One command, deterministic parser-only by default. |
 | `agent/scripts/pause-demo.ts` | — | Pause demo script (Phase 4 video). |
-| `agent/scripts/preflight.ts` | — | preflight.ts — flip/submission readiness checklist for EMOI. |
+| `agent/scripts/preflight.ts` | nonExecutableShFiles | preflight.ts — flip/submission readiness checklist for EMOI. |
 | `agent/scripts/reissue-fck.ts` | — | Reissue FCK script (T2.2, flag-gated). |
 | `agent/scripts/transfer-for-agent.ts` | — | Transfer for a specific agent (T2.9 helper, also useful for any |
 | `agent/src/activity.ts` | ActivityEntry, appendActivity, readActivity, fetchNearBlocksActivity, collectActivity, vendorRole | Activity log (T2.8 fallback). JSONL, not committed. |
@@ -26,6 +26,7 @@
 | `agent/test/keyfile.test.ts` | (tests) | Key-file loader tests: conformance must SKIP (not crash) when the |
 | `agent/test/llm.test.ts` | (tests) | LLM harness tests (1a/1b/1c). Fully offline: resolveLlmIntent takes an |
 | `agent/test/parser.test.ts` | (tests) | T2.4 parser tests. The fallback parser must never "fix" malformed |
+| `agent/test/preflight.test.ts` | (tests) | Preflight helper tests: tracked shell scripts must carry +x in the git |
 | `agent/test/research.test.ts` | (tests) | Research slice tests (2026-11-02). No chain, no network, no keys: |
 | `agent/test/validation.test.ts` | (tests) | T2.5 test set (STRATEGY 9.21). Every failure test asserts the mock |
 | `contract/src/lib.rs` | AgentStatus, Agent, Policy, Contract, new, register_agent, set_policy, deposit_funds, … | EMOI PolicyVault contract. |
