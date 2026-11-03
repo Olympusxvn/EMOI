@@ -61,6 +61,10 @@ cd contract && cargo near build      # wasm build
 # Agent / frontend (from Phase 2/3 onward)
 npm run demo:valid    # real 0.5 NEAR transfer, prints a real tx hash
 npm run demo:attack   # both attacks blocked, no NEAR leaves the vault
+
+# One-command gates (Makefile; CI runs `make check`)
+make setup && make check   # Tier 1 offline gate, no .env needed
+make check-online          # Tier 2 testnet gate, needs a filled .env
 ```
 
 ## Rules for anyone (human or AI) working in this repo
