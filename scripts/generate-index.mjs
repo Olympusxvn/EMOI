@@ -89,7 +89,7 @@ ${rows.join("\n")}
 
 const indexPath = join(root, "INDEX.md");
 if (process.argv.includes("--check")) {
-  const current = existsSync(indexPath) ? readFileSync(indexPath, "utf8") : "";
+  const current = existsSync(indexPath) ? readFileSync(indexPath, "utf8").replaceAll("\r\n", "\n") : "";
   if (current !== output) {
     console.error("INDEX.md is stale. Run: node scripts/generate-index.mjs");
     process.exit(1);
