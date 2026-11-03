@@ -5,7 +5,7 @@
 | File | Export | Description |
 |------|--------|-------------|
 | `agent/scripts/audit-checklist.ts` | — | audit-checklist.ts — direct-contract audit, bypassing frontend AND |
-| `agent/scripts/conformance.ts` | — | conformance.ts — check that the CONTRACT, the README error table, and |
+| `agent/scripts/conformance.ts` | tryKeyFileFor | conformance.ts — check that the CONTRACT, the README error table, and |
 | `agent/scripts/create-agent.ts` | — | Create Agent script (T2.1, owner-operated). |
 | `agent/scripts/demo-attack.ts` | — | demo:attack (T2.7). Runs both frozen attacks through the REAL |
 | `agent/scripts/demo-valid.ts` | — | demo:valid (T2.6). One command, deterministic parser-only by default. |
@@ -23,6 +23,7 @@
 | `agent/src/server.ts` | — | Agent service HTTP server (T2.8 endpoint for the local frontend). |
 | `agent/src/service.ts` | TransferResult, intentLineFor, Signer, transferWithValidation, realSigner, resolveLlmIntent, processIntent | Agent transfer service (T2.3 / T2.5). |
 | `agent/src/validation.ts` | AgentStatus, Policy, AgentState, PolicyViolation, ValidationResult, currentDayFromMs, validateBeforeSigning, nearToYocto, … | validateBeforeSigning: the single pre-signing re-validation layer. |
+| `agent/test/keyfile.test.ts` | (tests) | Key-file loader tests: conformance must SKIP (not crash) when the |
 | `agent/test/llm.test.ts` | (tests) | LLM harness tests (1a/1b/1c). Fully offline: resolveLlmIntent takes an |
 | `agent/test/parser.test.ts` | (tests) | T2.4 parser tests. The fallback parser must never "fix" malformed |
 | `agent/test/research.test.ts` | (tests) | Research slice tests (2026-11-02). No chain, no network, no keys: |

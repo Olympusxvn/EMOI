@@ -18,6 +18,10 @@
 //
 // Usage: npx tsx scripts/conformance.ts
 // Exit code 0 = all PASS (or SKIP); 1 = any FAIL.
+// The revoked FCK-only case SKIPs (instead of crashing) when the throwaway
+// key file is absent from the legacy keychain; re-create the throwaway
+// agent to restore full coverage. The guarded daily-limit case SKIPs the
+// same way when the audit agent FCK is not resolvable locally.
 
 import { config, requireAgentFck } from "../src/config.js";
 import { fckPrivateKeyFor } from "../src/fck.js";
@@ -35,6 +39,22 @@ const FCKONLY = "fckonly-test.emoi.testnet";
 const AUDIT_AGENT = "audit2-test.emoi.testnet";
 const FCKONLY_FCK_PUB = "ed25519:2EC21JE2U9sYZpbkuFJsEtnSm7HsDb7ijBLcb48qKwDc";
 
+
+export function tryKeyFileFor(
+  agentId: string,
+  publicKey: string,
+  keychainBase: string = path.join(os.homedir(), ".near-credentials", "testnet"),
+): string | null {
+  try {
+    const bare = publicKey.startsWith("ed25519:") ? publicKey.slice(8) : publicKey;
+    const data = JSON.parse(
+      fs.readFileSync(path.join(keychainBase, agentId, `ed25519_${bare}.json`), "utf-8"),
+    ) as { private_key: string };
+    return typeof data.private_key === "string" && data.private_key ? data.private_key : null;
+  } catch {
+    return null;
+  }
+}
 
 function keyFileFor(agentId: string, publicKey: string): string {
   const dir = path.join(os.homedir(), ".near-credentials", "testnet", agentId);
@@ -100,14 +120,24 @@ async function main() {
   const mainBefore = await viewPolicy(MAIN);
 
   const mainNear = nearFor(MAIN, requireAgentFck());
-  const fckonlyNear = nearFor(FCKONLY, keyFileFor(FCKONLY, FCKONLY_FCK_PUB));
+  const fckonlyKey = tryKeyFileFor(FCKONLY, FCKONLY_FCK_PUB);
+  const fckonlyNear = fckonlyKey ? nearFor(FCKONLY, fckonlyKey) : null;
 
   const transferCases = [
     { name: "non-whitelisted direct", near: mainNear, recipient: "attacker.near", amount: "0.5", expected: "RecipientNotWhitelisted" },
     { name: "over-max direct", near: mainNear, recipient: "emoi01.testnet", amount: "1.5", expected: "ExceedsMaxPerTx" },
     { name: "zero-amount direct", near: mainNear, recipient: "emoi01.testnet", amount: "0", expected: "InvalidAmount" },
-    { name: "revoked FCK-only direct", near: fckonlyNear, recipient: "emoi01.testnet", amount: "0.5", expected: "AgentRevoked" },
+    ...(fckonlyNear
+      ? [{ name: "revoked FCK-only direct", near: fckonlyNear, recipient: "emoi01.testnet", amount: "0.5", expected: "AgentRevoked" }]
+      : []),
   ];
+  if (!fckonlyNear) {
+    results.push({
+      name: "revoked FCK-only direct",
+      verdict: "SKIP",
+      detail: `legacy key file for ${FCKONLY} (${FCKONLY_FCK_PUB}) not found; revoked-agent case not verified — restore the key file or re-create the throwaway to restore coverage`,
+    });
+  }
   for (const c of transferCases) {
     const r = await directTransfer(c.near, c.recipient, nearToYocto(c.amount).toString());
     const liveOk = !r.ok && r.error.includes(`PolicyViolation: ${c.expected}`);
@@ -152,7 +182,17 @@ async function main() {
   const spent = BigInt((auditBefore.policy?.spent_today as string) ?? "0");
   const daily = BigInt((auditBefore.policy?.daily_limit as string) ?? "0");
   if (auditBefore.policy && daily > 0n && spent >= daily) {
-    const auditNear = nearFor(AUDIT_AGENT, await auditFckPrivateKey());
+    let auditNear: Near | null = null;
+    try {
+      auditNear = nearFor(AUDIT_AGENT, await auditFckPrivateKey());
+    } catch (e) {
+      results.push({
+        name: "daily-limit direct (guarded)",
+        verdict: "SKIP",
+        detail: `audit agent FCK key not resolvable locally (${String(e).slice(0, 120)}); daily-limit case not verified`,
+      });
+    }
+    if (auditNear) {
     const r = await directTransfer(auditNear, "emoi01.testnet", nearToYocto("1").toString());
     const liveOk = !r.ok && r.error.includes("PolicyViolation: ExceedsDailyLimit");
     results.push({
@@ -160,6 +200,7 @@ async function main() {
       verdict: liveOk ? "PASS" : "FAIL",
       detail: liveOk ? "live=ExceedsDailyLimit" : `error: ${r.error.slice(0, 160)}`,
     });
+    }
   } else {
     results.push({
       name: "daily-limit direct (guarded)",
@@ -184,7 +225,7 @@ async function main() {
   if (failed > 0) process.exit(1);
 }
 
-main().catch((e: unknown) => {
+if (path.basename(process.argv[1] ?? "").startsWith("conformance.")) main().catch((e: unknown) => {
   console.error(e instanceof Error ? e.message : String(e));
   process.exit(1);
 });
