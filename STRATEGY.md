@@ -158,6 +158,20 @@ deterministic enforcement (security). After judging, in order: (1) Intents
 "agent pays vendor in USDC" lane, (2) pending-approval queue + batch payments,
 (3) public registry + trust badges. None enter the submission window.
 
+### E1. Frozen backlog (captured 2026-11-03, post-hackathon only)
+
+Proposed but frozen for the submission window, in suggested order:
+(4) Policy dry-run endpoint (agent-only, no contract change): simulate a
+transfer against `validateBeforeSigning` without signing — preview before
+sign. (5) Exportable spend receipts (agent-only): per-transfer receipt
+(tx hash + policy snapshot) for accounting and audit. (6) FCK allowance
+threshold alerts (agent-only): warn when the service FCK allowance drops
+below a floor. (7) Per-recipient caps (contract change: redeploy + full
+re-audit + on-chain re-verify required). (8) Time-window policies
+(contract change, same redeploy cost). Explicitly NOT planned even
+post-hackathon without a new decision: TEE attestation, earn settlement,
+agent negotiation/hiring, reputation/scam scoring, shared blocklists.
+
 ## F. Session log 2026-11-02 (post-audit fixes + live-test)
 
 - P0/P1/P2 fixes implemented and pushed (1adb5d1): C1 owner-derived
