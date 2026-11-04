@@ -21,8 +21,9 @@
 | `agent/src/parser.ts` | ParsedIntent, ParseResult, parseIntent | Deterministic intent parser (T2.4). |
 | `agent/src/research.ts` | RESEARCH_AGENT_ID, DATA_VENDOR, COMPUTE_VENDOR, DATA_COST_NEAR, COMPUTE_COST_NEAR, MIN_PRICE_NEAR, ResearchStatus, ResearchStep, … | research.ts — Research Report Agent slice (additive, 2026-11-02). |
 | `agent/src/server.ts` | — | Agent service HTTP server (T2.8 endpoint for the local frontend). |
-| `agent/src/service.ts` | TransferResult, intentLineFor, Signer, transferWithValidation, realSigner, resolveLlmIntent, processIntent | Agent transfer service (T2.3 / T2.5). |
+| `agent/src/service.ts` | TransferResult, intentLineFor, Signer, transferWithValidation, realSigner, resolveLlmIntent, DryRunResult, previewTransfer, … | Agent transfer service (T2.3 / T2.5). |
 | `agent/src/validation.ts` | AgentStatus, Policy, AgentState, PolicyViolation, ValidationResult, currentDayFromMs, validateBeforeSigning, nearToYocto, … | validateBeforeSigning: the single pre-signing re-validation layer. |
+| `agent/test/dryrun.test.ts` | (tests) | Dry-run preview tests: previewTransfer reuses validateBeforeSigning with |
 | `agent/test/keyfile.test.ts` | (tests) | Key-file loader tests: conformance must SKIP (not crash) when the |
 | `agent/test/llm.test.ts` | (tests) | LLM harness tests (1a/1b/1c). Fully offline: resolveLlmIntent takes an |
 | `agent/test/parser.test.ts` | (tests) | T2.4 parser tests. The fallback parser must never "fix" malformed |

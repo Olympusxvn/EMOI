@@ -14,6 +14,8 @@ import {
   yoctoToNear,
   nearToYocto,
   currentDayFromMs,
+  type AgentState,
+  type Policy,
   type PolicyViolation,
 } from "./validation.js";
 import { appendActivity, vendorRole } from "./activity.js";
@@ -169,6 +171,91 @@ export async function resolveLlmIntent(
     }
   }
   return llmResult;
+}
+
+export type DryRunResult =
+  | {
+      status: "would-succeed";
+      recipient: string;
+      amountNear: string;
+      intentLine: string;
+      policyAtTime?: { maxNear: string; dailyNear: string };
+    }
+  | {
+      status: "rejected";
+      recipient: string;
+      amountNear: string;
+      reason: PolicyViolation | "ParseFailed";
+      intentLine: string;
+    };
+
+/**
+ * Dry-run preview: parse + validate against caller-supplied views, then tell
+ * whether the transfer WOULD succeed. Pure by construction: it takes no
+ * signer, calls no signer, fetches no views, writes no activity log, and
+ * never returns a txHash. The server supplies fresh views; tests inject
+ * fixtures. Validation reuses validateBeforeSigning, so preview and signing
+ * can never disagree on the verdict.
+ */
+export async function previewTransfer(args: {
+  text: string;
+  useLlm: boolean;
+  agentAccountId?: string;
+  llmFn?: (userText: string) => Promise<ParseResult | null>;
+  views: {
+    agentState: AgentState | null;
+    policy: Policy | null;
+    vaultBalanceYocto: string;
+  };
+  today?: number;
+}): Promise<DryRunResult> {
+  let parsed = parseIntent(args.text);
+  if (args.useLlm) {
+    const llm =
+      args.llmFn ?? ((t: string) => getLlmIntent(t, config.nearAiCloudApiKey, config.nearAiModel));
+    parsed = await resolveLlmIntent(args.text, llm);
+  }
+  if (!parsed.ok) {
+    return {
+      status: "rejected",
+      recipient: "",
+      amountNear: "",
+      reason: "ParseFailed",
+      intentLine: `Could not parse intent: ${args.text}`,
+    };
+  }
+  const { recipient, amountNear, amountYocto } = parsed.intent;
+  const { agentState, policy, vaultBalanceYocto } = args.views;
+  const validation = validateBeforeSigning({
+    agentState,
+    policy,
+    vaultBalanceYocto,
+    recipient,
+    amountYocto,
+    today: args.today ?? currentDayFromMs(Date.now()),
+  });
+  const intentLine = intentLineFor(recipient, amountNear, policy);
+  if (!validation.ok) {
+    return {
+      status: "rejected",
+      recipient,
+      amountNear,
+      reason: validation.reason,
+      intentLine,
+    };
+  }
+  return {
+    status: "would-succeed",
+    recipient,
+    amountNear,
+    intentLine,
+    policyAtTime: policy
+      ? {
+          maxNear: yoctoToNear(policy.max_per_tx),
+          dailyNear: yoctoToNear(policy.daily_limit),
+        }
+      : undefined,
+  };
 }
 
 export async function processIntent(args: {

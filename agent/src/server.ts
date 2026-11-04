@@ -11,10 +11,13 @@
 //                           decline (walk away, no spend). See research.ts
 //                           for the honest scope limits of this slice.
 // GET  /research         -> research receipts from research.jsonl.
+// POST /transfer/dry-run -> preview only: parse + validate against fresh
+//                      views, return would-succeed/rejected. Never signs,
+//                      never broadcasts, never logs activity, no txHash.
 import http from "node:http";
 import { config } from "./config.js";
 import { collectActivity } from "./activity.js";
-import { processIntent } from "./service.js";
+import { previewTransfer, processIntent } from "./service.js";
 import {
   RESEARCH_AGENT_ID,
   appendResearchLog,
@@ -101,6 +104,37 @@ const server = http.createServer(async (req, res) => {
           source: "parser",
         });
         res.end(JSON.stringify(result, null, 2));
+      } catch (e) {
+        res.statusCode = 500;
+        res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+      }
+    });
+    return;
+  }
+  if (req.url === "/transfer/dry-run" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => { body += chunk; });
+    req.on("end", async () => {
+      try {
+        const parsed = JSON.parse(body || "{}") as { text?: string; agent?: string };
+        if (!parsed.text) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({ error: "text is required" }));
+          return;
+        }
+        const agentAccountId = parsed.agent ?? config.agentAccountId;
+        const views = await fetchPolicyViews(createViewNear(), agentAccountId);
+        const result = await previewTransfer({
+          text: parsed.text,
+          useLlm: false,
+          agentAccountId,
+          views: {
+            agentState: views.agentState,
+            policy: views.policy,
+            vaultBalanceYocto: views.vaultBalanceYocto,
+          },
+        });
+        res.end(JSON.stringify({ ...result, note: "dry-run: nothing was signed" }, null, 2));
       } catch (e) {
         res.statusCode = 500;
         res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
