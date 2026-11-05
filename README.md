@@ -95,8 +95,8 @@ inside its policy.
 
 ### How to verify (do X, see Y)
 
-- `cd contract && cargo test --lib` → 26 unit tests, all green, named after the spec
-- `cd agent && npm test` → validation (11) + parser (6) + research + LLM-harness (7) tests, all green; every failure test asserts mock signer call count = 0
+- `cd contract && cargo test --lib` → 31 unit tests, all green, named after the spec
+- `cd agent && npm test` → validation (11) + parser (6) + research + LLM-harness (7) + keyfile + preflight + dry-run + receipts + FCK tests, all green; validation/parser failure tests assert mock signer call count = 0
 - `cd agent && npm run demo:valid -- --json` → one successful transfer, real tx hash (see below)
 - `cd agent && npm run demo:attack -- --json` → both attacks blocked, each with its named `PolicyViolation`, no NEAR leaves the vault
 - `cd agent && npm run demo:pause -- --json` → owner pauses, a transfer is blocked with `AgentPaused` (no tx hash), owner resumes
@@ -158,8 +158,8 @@ a ~0.05 NEAR buffer, the contract keeps the bytes used and refunds the excess.
 
 ## Contract API
 
-Contract: `policy.emoi.testnet` (testnet). Wasm 139,244 bytes, SHA-256 hex
-`7c0774e42a746c28c9621234bfa04835395a2fcbf78db649ba78b5880d6d2f7e` (redeployed 2026-11-02, see below).
+Contract: `policy.emoi.testnet` (testnet). Wasm 140,880 bytes, SHA-256 hex
+`3d66c2ad029a78e9ed390d3d549021500e23daa40f967eae9c95e0f2c7aed5e8` (redeployed 2026-11-05, see below).
 
 | Method | Type | Args | Notes |
 |---|---|---|---|
@@ -491,6 +491,12 @@ Explorer base: https://explorer.testnet.near.org/transactions/
 | Resume agent (`demo:pause`) | `8PJUkRTj2Kxkziy4DZgBRDYkGf6kqhTguUxcyCKMHaSC` |
 | Valid transfer 0.5 NEAR to emoi01, after pause demo (spent_today then reached the 2 NEAR daily limit) | `7WWYtHGPTSAJi1mrJETHmZ3RRegkQb1MPKppgrgExgK8` |
 | Redeploy PolicyVault 2026-11-02 (saturating_sub daily-limit fix, named-violation tests; without init call, state preserved, conformance re-run 7/7) | `4u7R4yZGDuDFVZ1Tc9LMgBvn5eH4YT3vrRqQknWVyAim` |
+| Redeploy PolicyVault 2026-11-05 (identical bytes to the 2026-11-02 build, without init call, state preserved) | `7C1RzhHEburGhFeMhVmbJqGcQ1ZBK82HX7RV3t4oR1R7` |
+| Redeploy PolicyVault 2026-11-05, commit `39e971e` (auth-01 namespace check, auth-02 caller-paid storage, lifecycle events; without init call, state preserved, conformance re-run 7/7) | `EXupTcXupqGBdaVodu3xgVp8YvvC58f3PU6Fr4mzR2Mz` |
+| Register test agent `authproof.emoi.testnet` under auth-01/auth-02 (0.05 NEAR storage buffer, excess refunded) | `6AyL3TkFzo87CKSgT2xX5Mtdk3gkDAmvamzBTaxb9bTM` |
+| Set policy for `authproof.emoi.testnet` (max 1, daily 2, whitelist emoi01) | `Ed9MsmsUecF6RdetABKfw5p83RWbf55x4szDvXTcZEDg` |
+| Valid transfer 0.5 NEAR to emoi01 via test agent on the redeployed contract | `3cJwKKJJxntFCHDCXs7aeknxADMbWz187f84uYuHpqCM` |
+| Owner deposit restoring the shared vault to 4.0 NEAR (main agent spent_today unchanged at 0.5) | `874nGHZ7xDHtvMNqgdnWjk5dsXqva2rwUoe87L9AwjG6` |
 | Set policy for test agent `redeploy-proof.emoi.testnet` (max 1, daily 2, whitelist emoi01) | `4fgKs9m271jBPpauyegibznKjVJ4Wx4GtG6mVsZBR9Gt` |
 | Valid transfer 0.5 NEAR to emoi01 via test agent on the redeployed contract | `E8paqc4L9dusds6s6eWUkSVM1iapMqdmAFbpZCXsiY6t` |
 | Owner deposit 0.5 NEAR restoring the shared vault to 2.0 NEAR (main agent spent_today unchanged at 0.5) | `5nhJCELJYzd24NZDK8v24LXMa3qPBzYcD1bgYgvRqL9j` |
