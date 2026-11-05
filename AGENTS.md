@@ -21,8 +21,10 @@ NEAR Hackathon 2026, tracks: `agents` (Agent Economy) + `security` (AI Security 
 - Ledger is per owner, policy is per agent. `set_policy` does NOT reset
   `spent_today` and does NOT change status. Validation: max > 0, daily > 0, max <= daily,
   whitelist deduplicated, max 20 entries.
+- Registration binds the caller to the agent namespace (self or own sub-account);
+  state writes are caller-paid at measured cost with excess refunded.
 - `agent_transfer` check order (stop at first failure):
-  1. AgentNotRegistered, 2. AgentPaused, 3. RecipientNotWhitelisted,
+  1. AgentNotRegistered, 2. AgentPaused / AgentRevoked, 3. RecipientNotWhitelisted,
   4. InvalidAmount (amount == 0), 5. ExceedsMaxPerTx, 6. ExceedsDailyLimit
   (after lazy day reset), 7. InsufficientVaultBalance.
   `spent_today` and the owner ledger are updated BEFORE the transfer promise —
@@ -48,8 +50,8 @@ NEAR Hackathon 2026, tracks: `agents` (Agent Economy) + `security` (AI Security 
   Phase 1 replaces the template auction code with PolicyVault; do not keep template code.
 - `agent/` — TypeScript agent service (near-kit; near-api-js is the fallback).
 - `frontend/` — Vite React + TypeScript + Tailwind local frontend (near-connect-hooks wallet connector).
-- `scripts/` — `setup.sh`, `run-local.sh`, `create-agent.ts`, `reissue-fck.ts`,
-  demo scripts (`demo:valid`, `demo:attack`).
+- `scripts/` - `setup.sh` (deps + .env), `run-local.sh` (service + frontend).
+- `agent/scripts/` - `create-agent`, `reissue-fck`, `deploy-policy`, gates (`preflight`, `conformance`, `audit-checklist`), demos (`demo:valid`, `demo:attack`, `demo:pause`), `export-receipts`.
 
 ## Canonical commands (update here when they change)
 
@@ -78,6 +80,6 @@ make check-online          # Tier 2 testnet gate, needs a filled .env
   reputation, partner tools). Name only what the code/demo actually calls.
 - Tests are named after the spec (e.g. `valid_transfer_succeeds`,
   `attack_non_whitelisted_recipient_reverts`). No test is skipped silently.
-- Full plan: `~/workspace/nearhackathon-ref/STRATEGY.md` (sections 9.x are frozen decisions).
+- Full plan: `STRATEGY.md` (sections 9.x are frozen decisions).
   Skills in use: near-smart-contracts, near-kit, near-dapp, near-ai-cloud,
   near-cli-rs, near-api-js, near-contract-audit, ui-ux-pro-max, karpathy-guidelines.

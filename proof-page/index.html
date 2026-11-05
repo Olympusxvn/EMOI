@@ -51,7 +51,7 @@
 
   <section class="card" id="policy-card">
     <div class="eyebrow">AGENT POLICY <span class="live" id="live-label">· LOADING LIVE STATE…</span></div>
-    <div class="agent-id">Agent ID&nbsp; agent.emoi.testnet <span class="pill" id="status-pill">Active</span></div>
+    <div class="agent-id">Agent ID&nbsp; judgetest01.emoi.testnet <span class="pill" id="status-pill">Active</span></div>
     <p class="policy-line" id="policy-line">Policy: max 1 NEAR per transaction · daily limit 2 NEAR</p>
     <p class="policy-line" id="spent-line">Spent today: 0.5 / 2.0 NEAR</p>
     <div class="bar"><div id="spent-bar"></div></div>
@@ -62,13 +62,13 @@
   <section class="card">
     <div class="eyebrow">VALID PAYMENT — RECEIPT</div>
     <div class="receipt-row"><span class="pill">SUCCESS</span> Pay 0.5 NEAR to emoi01.testnet — API / compute provider</div>
-    <p class="tx">Tx: <a href="https://explorer.testnet.near.org/transactions/AzefmP7m4VCyi7TUVinQQpZ7ZYsyv6j9H21419uceU67">AzefmP7m4VCyi7TUVinQQpZ7ZYsyv6j9H21419uceU67</a> · explorer.testnet.near.org</p>
+    <p class="tx">Tx: <a href="https://explorer.testnet.near.org/transactions/7QVSEX2jgLbHXJvA9ertXWJfC7vgPNZ5dc6QsHrd7Dt1">7QVSEX2jgLbHXJvA9ertXWJfC7vgPNZ5dc6QsHrd7Dt1</a> · explorer.testnet.near.org · post-redeploy (2026-11-05)</p>
   </section>
 
   <section class="card">
     <div class="eyebrow">JUDGE-PATH REPRODUCTION -- WALLET-CREATED VAULT</div>
     <div class="receipt-row"><span class="pill">SUCCESS</span> Pay 0.5 NEAR to emoi01.testnet -- from wallettest01a.emoi.testnet</div>
-    <p class="reason">Vault created with wallet (browser-generated keypair, owner holds the key), policy set via script, FCK added with the near-cli legacy-keychain flag.</p>
+    <p class="reason">Vault created with wallet (browser-generated keypair, owner holds the key), policy set via script, FCK added with the near-cli legacy-keychain flag. Re-verified 2026-11-05 with auditprobe2.emoi.testnet (creation tx 4QwcVoK46ArRCCPAx5n5o6gduJDpzgYnR8p8h2ffQuvH, then script-finished and revoked).</p>
     <p class="tx">Wallet creation tx: <a href="https://explorer.testnet.near.org/transactions/5DLLAM3y6rEPqJgmsZSef8GjVxACFChgxDf7qgzyYyQ2">5DLLAM3y6rEPqJgmsZSef8GjVxACFChgxDf7qgzyYyQ2</a><br>FCK add tx: <a href="https://explorer.testnet.near.org/transactions/GYwaiCHAV61Y5NxG8SC1K4fZgHm8hE5StYApRCKjzytS">GYwaiCHAV61Y5NxG8SC1K4fZgHm8hE5StYApRCKjzytS</a><br>Valid payment tx: <a href="https://explorer.testnet.near.org/transactions/2hbVAPvT7u3j9qPL82x9rihYUjJ6wRN9NMorc4kkhmWq">2hbVAPvT7u3j9qPL82x9rihYUjJ6wRN9NMorc4kkhmWq</a> -- explorer.testnet.near.org</p>
   </section>
 
@@ -105,7 +105,7 @@
   // If the RPC is unreachable, the audited static values above stay, labelled as fallback.
   const RPC = "https://rpc.testnet.near.org";
   const CONTRACT = "policy.emoi.testnet";
-  const AGENT = "agent.emoi.testnet";
+  const AGENT = "judgetest01.emoi.testnet";
   const OWNER = "emoi.testnet";
   function yoctoToNear(y) { try { return (Number(BigInt(y)) / 1e24).toFixed(1); } catch { return null; } }
   async function view(method, args) {
@@ -137,7 +137,7 @@
       document.getElementById("vault-line").textContent = "Vault: " + vault + " NEAR · Contract: policy.emoi.testnet";
       document.getElementById("live-label").textContent = "· LIVE FROM TESTNET, " + new Date().toLocaleTimeString();
     } catch (e) {
-      document.getElementById("live-label").textContent = "· LIVE VIEW UNAVAILABLE — SHOWING AUDITED VALUES FROM 2026-11-02";
+      document.getElementById("live-label").textContent = "· LIVE VIEW UNAVAILABLE — SHOWING AUDITED VALUES FROM 2026-11-05";
     }
   })();
 </script>

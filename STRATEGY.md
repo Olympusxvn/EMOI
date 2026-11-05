@@ -160,8 +160,8 @@ deterministic enforcement (security). After judging, in order: (1) Intents
 
 ### E1. Frozen backlog (captured 2026-11-03, post-hackathon only)
 
-Proposed but frozen for the submission window, in suggested order:
-(4) Policy dry-run endpoint (agent-only, no contract change): simulate a
+Proposed 2026-11-03; (4)-(6) have since shipped pre-flip (see SHIPPED tags), (7)-(8) stay frozen:
+(4) [SHIPPED in 66aa2e1] Policy dry-run endpoint (agent-only, no contract change): simulate a
 transfer against `validateBeforeSigning` without signing — preview before
 sign. (5) Exportable spend receipts (agent-only): per-transfer receipt
 (tx hash + policy snapshot) for accounting and audit. (6) FCK allowance
@@ -233,3 +233,35 @@ found and fixed; level-2 closed with a new vault from scratch.
   nit, extra tx fee only, no user impact.
 - Clone EMOI-judgetest kept until after 14/11 for reference, then deleted;
   its .env holds real keys (gitignored).
+
+## H. Session log 2026-11-05 (redeploy by key-holding machine + re-audit + C1/C2 closure)
+
+- This machine has no policy full key (policy account holds only ed25519:23Ff...;
+  owner key ed25519:2qCe... cannot deploy to a sub-account), so the other
+  machine deployed: EXupTcXupqGBdaVodu3xgVp8YvvC58f3PU6Fr4mzR2Mz (commit 39e971e,
+  no init call, state preserved). Wasm 140,880 bytes, SHA-256
+  3d66c2ad029a78e9ed390d3d549021500e23daa40f967eae9c95e0f2c7aed5e8.
+  Verified from here: on-chain code_hash matches, frozen policy intact.
+- Re-audit negatives on the live contract (both revert, no state): register
+  unowned ID -> AgentNotOwnedSubaccount; set_policy 0-deposit growth ->
+  InsufficientStorageDeposit.
+- Refund math proven: register auditprobe1 (HpjiRSjJ1BEzX6EkaZnbPVa5FJLnSed6M9P4RzjwNWsH)
+  attached 0.05, EXPERIMENTAL_tx_status shows 0.04914 Transfer back to owner
+  (86 bytes measured and kept).
+- Lifecycle events on probe1: policy_updated EQirTEQ2aK5aheZQobQH7oi4bysLhG6GhiKhpAk7WgGq,
+  paused 2oK7C15iTF84fXM19BgiVVzgw4gLRDJpSDgFoG1w9Pj4, resumed 6pMxWY6NYy5iZxGY71e1WGZFYWhdLmZwkxSWKWSm8f1B,
+  revoked GE8zRKJ5iaujdYZiianPdg99q4KpKpkZyMG2zWCJovB1; probe locked. Probe2
+  (wallet path) also revoked after its finish.
+- C1 CLOSED: namespace derives from OWNER_ACCOUNT_ID/signedAccountId in both
+  branches; script run live (auditprobe1, tx 3kaRKVtUrpQSqYTTZJHykQUQxqrcHjw8sgHcsBgtj8Fj).
+  C2 CLOSED: wallet creation includes full-access AddKey in the same tx
+  (auditprobe2, tx 4QwcVoK46ArRCCPAx5n5o6gduJDpzgYnR8p8h2ffQuvH), script finish
+  works on wallet-created accounts (register C461WvQxn9KKtpJfMBBToSEZgAaB4aJuG5JnkWFwkBdT).
+- Tier-2 re-run green: demo:valid 7QVSEX2jgLbHXJvA9ertXWJfC7vgPNZ5dc6QsHrd7Dt1,
+  attacks blocked, conformance 5 PASS / 2 SKIP / 0 FAIL. Vault restored to
+  exactly 5.0 (view-verified twice).
+- Incident: bc96312 (other machine) stripped +x from both .sh files and broke
+  CI setup; fixed by bb03ae3 (mode-only). Lesson: run preflight before push -
+  its shell-scripts-executable guard catches this.
+- Remaining pre-flip: FCK reissue 13-14/11 with allowance noted, full-key
+  deletion, post-deletion demo:valid; video stays frozen at 11-02 narration.

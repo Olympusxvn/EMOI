@@ -161,6 +161,8 @@ a ~0.05 NEAR buffer, the contract keeps the bytes used and refunds the excess.
 Contract: `policy.emoi.testnet` (testnet). Wasm 140,880 bytes, SHA-256 hex
 `3d66c2ad029a78e9ed390d3d549021500e23daa40f967eae9c95e0f2c7aed5e8` (redeployed 2026-11-05, see below).
 
+Deployed code = commit `39e971e` (later commits are modes/docs only; no code change since). Redeploy (owner, needs the policy full key): `cd agent && npm run deploy-policy -- --key-file <policy-key-file> --confirm`.
+
 | Method | Type | Args | Notes |
 |---|---|---|---|
 | `new` | init | — | Initialises empty maps |
@@ -311,10 +313,10 @@ verify attestation quotes, and no security claim in this README depends on it.
 
 | Claim | Code | Evidence |
 |---|---|---|
-| Policy is enforced on-chain, not in the UI | `contract/src/lib.rs: agent_transfer` | 15 contract tests; direct FCK audit 2026-11-02 (see Audit) |
+| Policy is enforced on-chain, not in the UI | `contract/src/lib.rs: agent_transfer` | 31 contract tests; direct FCK audits 2026-11-02 + 2026-11-05 (see Audit) |
 | Pre-signing validation, signer 0 on failure | `agent/src/validation.ts: validateBeforeSigning`, `agent/src/service.ts: processIntent` | Agent tests 11 + 5, all failure tests assert mock signer count = 0; audit LLM daily-limit and injection prompts, signer 0 |
 | Attack Demo blocks before signing | `agent/src/server.ts: /attack-demo`, frontend Agent Detail "Run Attack Demo" | Frozen attacks, no tx hash; button uses the parser path for deterministic reasons |
-| Pause/Revoke take effect immediately and revoke is terminal | `contract/src/lib.rs: pause_agent / resume_agent / revoke_agent`, `require_owner_agent` | Audit 2026-11-02 + step-5 tests (FCK pause attempt rejected at the access key; revoked FCK-only transfer reverts `AgentRevoked` at `lib.rs:256`) |
+| Pause/Revoke take effect immediately and revoke is terminal | `contract/src/lib.rs: pause_agent / resume_agent / revoke_agent`, `require_owner_agent` | Audits 2026-11-02 + 2026-11-05 + step-5 tests (FCK pause attempt rejected at the access key; revoked FCK-only transfer reverts `AgentRevoked` at `lib.rs:321`) |
 | FCK-only account | `agent/scripts/create-agent.ts`, `near account delete-keys` | Throwaway-agent proof below; main agent pending the final step |
 | Remaining budget is visible | Frontend `SpentProgress`, 80% UI-only warning | UI only — the warning is not a contract check, and the UI says so |
 | Receipts | Frontend `ActivityRow`, agent service activity log | Success rows carry a NearBlocks link; reject rows carry a reason and no tx hash; direct contract failures live in on-chain failed receipts, not in the local log |
@@ -497,6 +499,10 @@ Explorer base: https://explorer.testnet.near.org/transactions/
 | Set policy for `authproof.emoi.testnet` (max 1, daily 2, whitelist emoi01) | `Ed9MsmsUecF6RdetABKfw5p83RWbf55x4szDvXTcZEDg` |
 | Valid transfer 0.5 NEAR to emoi01 via test agent on the redeployed contract | `3cJwKKJJxntFCHDCXs7aeknxADMbWz187f84uYuHpqCM` |
 | Owner deposit restoring the shared vault to 4.0 NEAR (main agent spent_today unchanged at 0.5) | `874nGHZ7xDHtvMNqgdnWjk5dsXqva2rwUoe87L9AwjG6` |
+| Post-redeploy audit 2026-11-05: register `auditprobe1.emoi.testnet` with 0.05 NEAR buffer, 0.04914 refunded (86 bytes measured; verify via EXPERIMENTAL_tx_status) | `HpjiRSjJ1BEzX6EkaZnbPVa5FJLnSed6M9P4RzjwNWsH` |
+| Wallet creation re-verified 2026-11-05: `auditprobe2.emoi.testnet` (CreateAccount + full-access AddKey + 0.5 NEAR, C2 path) | `4QwcVoK46ArRCCPAx5n5o6gduJDpzgYnR8p8h2ffQuvH` |
+| Script finish of wallet-created `auditprobe2` (FCK + register, probe revoked after) | `C461WvQxn9KKtpJfMBBToSEZgAaB4aJuG5JnkWFwkBdT` |
+| Valid transfer 0.5 NEAR to emoi01, post-redeploy (`demo:valid` 2026-11-05) | `7QVSEX2jgLbHXJvA9ertXWJfC7vgPNZ5dc6QsHrd7Dt1` |
 | Set policy for test agent `redeploy-proof.emoi.testnet` (max 1, daily 2, whitelist emoi01) | `4fgKs9m271jBPpauyegibznKjVJ4Wx4GtG6mVsZBR9Gt` |
 | Valid transfer 0.5 NEAR to emoi01 via test agent on the redeployed contract | `E8paqc4L9dusds6s6eWUkSVM1iapMqdmAFbpZCXsiY6t` |
 | Owner deposit 0.5 NEAR restoring the shared vault to 2.0 NEAR (main agent spent_today unchanged at 0.5) | `5nhJCELJYzd24NZDK8v24LXMa3qPBzYcD1bgYgvRqL9j` |
