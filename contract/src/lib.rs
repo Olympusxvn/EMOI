@@ -912,7 +912,7 @@ mod tests {
 
     #[test]
     fn register_agent_non_subaccount_reverts() {
-        // attacker.testnet owns neither agent.emoi.testnet nor its parent.
+        // attacker.near owns neither agent.emoi.testnet nor its parent.
         set_context(attacker(), storage_deposit(), 0);
         let mut contract = Contract::new();
         expect_violation(
@@ -983,7 +983,7 @@ mod tests {
         set_context(owner(), NearToken::from_near(5), 0);
         contract.deposit_funds();
         set_context(agent(), NearToken::from_yoctonear(0), 0);
-        contract.request_transfer(vendor1(), NearToken::from_near(1));
+        contract.agent_transfer(vendor1(), NearToken::from_near(1));
         logs.extend(get_logs());
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         contract.pause_agent(agent());
