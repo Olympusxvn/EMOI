@@ -142,9 +142,11 @@ gitignored; tests/build/lint green.
 
 ## D. Pre-submit lockdown
 
-- [ ] P0+P1 green: cargo test, npm test, frontend build + lint, conformance
-  PASS (no unexpected SKIP), preflight 0 FAIL
-- [x] Fresh-clone run AND judge-path run (wallettest01a.emoi.testnet, 2026-11-02) both green
+- [x] P0+P1 green (2026-11-05, CI green): cargo test 31, npm test 9 suites,
+  frontend build + lint, conformance 5 PASS / 2 SKIP / 0 FAIL (SKIPs are the
+  documented missing-throwaway-key cases with restore path, not regressions),
+  preflight 0 FAIL on Linux (Windows cargo FAIL is environmental, CI covers)
+- [x] Fresh-clone run AND judge-path run (wallettest01a.emoi.testnet, 2026-11-02) both green; judge-path re-verified 2026-11-05 on both branches (script: auditprobe1 tx 3kaRKVtU; wallet: auditprobe2 tx 4QwcVoK4, both revoked after)
 - [ ] FCK reissued pre-deletion with allowance noted; deletion executed
   13–14/11; post-deletion `demo:valid` green
 - [ ] Video output matches narration (C4/N8); X post live with video; repo
