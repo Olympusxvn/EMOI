@@ -9,6 +9,7 @@
 | `agent/scripts/create-agent.ts` | — | Create Agent script (T2.1, owner-operated). |
 | `agent/scripts/demo-attack.ts` | — | demo:attack (T2.7). Runs both frozen attacks through the REAL |
 | `agent/scripts/demo-valid.ts` | — | demo:valid (T2.6). One command, deterministic parser-only by default. |
+| `agent/scripts/deploy-policy.ts` | — | Deploy a freshly built PolicyVault wasm to the policy account |
 | `agent/scripts/export-receipts.ts` | — | Export spend receipts to a file or stdout (agent-only, read-only). |
 | `agent/scripts/pause-demo.ts` | — | Pause demo script (Phase 4 video). |
 | `agent/scripts/preflight.ts` | nonExecutableShFiles | preflight.ts — flip/submission readiness checklist for EMOI. |

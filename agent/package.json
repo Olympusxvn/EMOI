@@ -13,7 +13,8 @@
     "conformance": "tsx scripts/conformance.ts",
     "preflight": "tsx scripts/preflight.ts",
     "reissue-fck": "tsx scripts/reissue-fck.ts",
-    "export-receipts": "tsx scripts/export-receipts.ts"
+    "export-receipts": "tsx scripts/export-receipts.ts",
+    "deploy-policy": "tsx scripts/deploy-policy.ts"
   },
   "dependencies": {
     "bs58": "^6.0.0",
