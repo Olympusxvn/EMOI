@@ -137,6 +137,9 @@ impl Contract {
                 status: AgentStatus::Active,
             },
         );
+        // store::LookupMap caches inserts in memory; flush so the
+        // measured delta below reflects the real bytes written.
+        self.agents.flush();
         assert_storage_paid_and_refund(initial_storage, owner.clone());
         env::log_str(&format!(
             "EVENT_JSON:{{\"standard\":\"emoi\",\"version\":\"1.0.0\",\"event\":\"agent_registered\",\"data\":{{\"agent\":\"{}\",\"owner\":\"{}\"}}}}",
@@ -199,6 +202,9 @@ impl Contract {
                 current_day,
             },
         );
+        // store::LookupMap caches inserts in memory; flush so the
+        // measured delta below reflects the real bytes written.
+        self.policies.flush();
         assert_storage_paid_and_refund(initial_storage, caller.clone());
         env::log_str(&format!(
             "EVENT_JSON:{{\"standard\":\"emoi\",\"version\":\"1.0.0\",\"event\":\"policy_updated\",\"data\":{{\"agent\":\"{}\",\"max_per_tx\":\"{}\",\"daily_limit\":\"{}\"}}}}",
@@ -962,15 +968,28 @@ mod tests {
 
     #[test]
     fn lifecycle_events_emitted() {
-        let mut contract = setup_with_policy_and_funds();
+        // NOTE: each set_context installs a fresh mocked blockchain and
+        // wipes logs (only storage carries over), so capture logs per phase.
+        let mut contract = Contract::new();
+        set_context(owner(), storage_deposit(), 0);
+        contract.register_agent(agent());
+        contract.set_policy(
+            agent(),
+            NearToken::from_near(1),
+            NearToken::from_near(2),
+            vec![vendor1(), vendor2()],
+        );
+        let mut logs = get_logs();
+        set_context(owner(), NearToken::from_near(5), 0);
+        contract.deposit_funds();
         set_context(agent(), NearToken::from_yoctonear(0), 0);
         contract.request_transfer(vendor1(), NearToken::from_near(1));
+        logs.extend(get_logs());
         set_context(owner(), NearToken::from_yoctonear(0), 0);
         contract.pause_agent(agent());
         contract.resume_agent(agent());
         contract.revoke_agent(agent());
-
-        let logs = get_logs();
+        logs.extend(get_logs());
         for event in [
             "agent_registered",
             "policy_updated",

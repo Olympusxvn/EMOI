@@ -203,7 +203,7 @@ application event namespace, not a NEP number. Lifecycle events (agent_registere
 | `PolicyViolation: AgentNotRegistered` | Agent id not in `agents`, or policy missing | contract `register`/`set_policy`/`agent_transfer` |
 | `PolicyViolation: AgentAlreadyRegistered` | Registering an existing agent id, including revoked | contract `register_agent` |
 | `PolicyViolation: AgentNotOwnedSubaccount` | Registering an ID the caller does not own | contract `register_agent` |
-| `InsufficientStorageDeposit` | Attached deposit below the measured storage cost | contract `register_agent` / `set_policy` |
+| `PolicyViolation: InsufficientStorageDeposit` | Attached deposit below the measured storage cost | contract `register_agent` / `set_policy` |
 | `PolicyViolation: OnlyOwnerCanSetPolicy` | Non-owner calls `set_policy` | contract `set_policy` |
 | `PolicyViolation: OnlyOwnerCanManageAgent` | Non-owner calls pause/resume/revoke | contract pause/resume/revoke |
 | `PolicyViolation: InvalidPolicy` | max ≤ 0, daily ≤ 0, max > daily, or whitelist > 20 | contract `set_policy` |
