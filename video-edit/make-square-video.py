@@ -1,30 +1,31 @@
 #!/usr/bin/env python3
-"""Build the square (1080x1080) EMOI Attack Demo video for X/Twitter.
+"""Build the square (1080x1080) EMOI demo video for X/Twitter.
 
-Style: near.com dark theme — black background, white text, NEAR green
-(#00EC97) accent only. Red appears only on BLOCKED labels (same semantic
-use as the frontend: rejected = red). All tx hashes below are real
-testnet transactions from the frozen demo; rejected rows have no tx hash
-by design — nothing was signed.
-Slides are silent, 7 seconds each, 49 seconds total.
-Font: DejaVu Sans (clean sans-serif available on this machine; the web
-frontend loads real Inter — see frontend/index.html).
+Style: nearhackathon.com — cream paper background, dark olive-ink text,
+blue accent (section labels, rules, badges). Red appears only on BLOCKED
+labels (rejected = red, same semantic use as the frontend). Section
+kickers mimic the site ("00 / THE PROBLEM"); slide numbers read "01 / 07".
+All tx hashes below are real testnet transactions; rejected rows have no
+tx hash by design — nothing was signed.
+Slides are silent, 7 seconds each, 49 seconds total. Ratio always 1:1.
+Fonts: Arial Bold (site display face) + Consolas/DejaVu mono (site uses
+IBM Plex Mono for labels; closest local equivalents).
 """
 import os
 import textwrap
 from PIL import Image, ImageDraw, ImageFont
 
 W = H = 1080
-BG = (0, 0, 0)
-CARD = (17, 17, 17)
-BORDER = (38, 38, 38)
-WHITE = (255, 255, 255)
-GREY = (163, 163, 163)
-LIGHT = (212, 212, 212)
-GREEN = (0, 236, 151)
-RED = (239, 68, 68)
+BG = (231, 223, 202)
+CARD = (220, 210, 186)
+BORDER = (189, 177, 153)
+WHITE = (22, 26, 21)
+GREY = (74, 82, 65)
+LIGHT = (50, 46, 37)
+GREEN = (0, 95, 176)
+RED = (176, 42, 42)
 
-WIN_FONTS = {"DejaVuSans-Bold.ttf": "arialbd.ttf", "DejaVuSans.ttf": "arial.ttf", "DejaVuSansMono.ttf": "cour.ttf"}
+WIN_FONTS = {"DejaVuSans-Bold.ttf": "arialbd.ttf", "DejaVuSans.ttf": "arial.ttf", "DejaVuSansMono.ttf": "consola.ttf"}
 def _font_path(name):
     candidates = ["/usr/share/fonts/truetype/dejavu/" + name,
                     "/usr/share/fonts/TTF/" + name]
@@ -82,43 +83,40 @@ def draw_slide(path, kicker, title_lines, body_lines, card_lines=None,
     img.save(path)
 
 S = "square"
-draw_slide(f"{S}01.png", "EMOI  ·  SAFE AGENT  ·  NEAR TESTNET",
-           ["Give AI a wallet,", "but never the keys", "to everything."],
-           ["On-chain policy. One limited key.", "Owner in control."],
-           num="1 / 7")
-draw_slide(f"{S}02.png", "THE POLICY",
-           ["One agent.", "Strict limits."],
+draw_slide(f"{S}01.png", "00 / THE PROBLEM",
+           ["Your AI assistant", "needs to pay", "for things."],
+           ["But one bad instruction", "could drain your wallet."],
+           num="01 / 07")
+draw_slide(f"{S}02.png", "01 / ONE MOMENT",
+           ["Pay the 0.5 NEAR", "API invoice."],
            [],
-           card_lines=[("Agent ID  agent.emoi.testnet", True),
+           card_lines=[("Agent  judgetest01.emoi.testnet", True),
                        ("Max per tx  1 NEAR", False),
                        ("Daily limit  2 NEAR", False),
-                       ("Whitelist  emoi01, emoi02", False),
-                       ("Vault  policy.emoi.testnet", True)],
-           num="2 / 7")
-draw_slide(f"{S}03.png", "VALID PAYMENT",
-           ["0.5 NEAR to a", "whitelisted vendor."],
-           ["Pay the API / compute invoice", "from emoi01.testnet."],
+                       ("Whitelist  emoi01, emoi02", False)],
+           num="02 / 07")
+draw_slide(f"{S}03.png", "02 / RECEIPT",
+           ["Paid. 0.5 NEAR", "to emoi01."],
+           ["Settled on NEAR testnet."],
            badge="SUCCESS", badge_color=GREEN,
-           card_lines=[("Tx  AzefmP7m4VCyi7TUVinQQpZ7Z", True),
-                       ("    Ysyv6j9H21419uceU67", True)],
-           num="3 / 7")
-draw_slide(f"{S}04.png", "ATTACK 1  ·  NOT WHITELISTED",
+           card_lines=[("Tx  7QVSEX2jgLbHXJvA9ertXWJfC", True),
+                       ("    7vgPNZ5dc6QsHrd7Dt1", True)],
+           num="03 / 07")
+draw_slide(f"{S}04.png", "03 / THE ATTACK",
            ["Send 100 NEAR", "to attacker.near"],
            ["Not on the whitelist.", "Blocked before signing."],
            badge="BLOCKED BEFORE SIGNING", badge_color=RED,
            card_lines=[("Reason  RecipientNotWhitelisted", False),
                        ("No transaction signed.", False),
                        ("No tx hash.", False)],
-           num="4 / 7")
-draw_slide(f"{S}05.png", "ATTACK 2  ·  OVER THE LIMIT",
-           ["1.5 NEAR to", "emoi01.testnet"],
-           ["Whitelisted vendor, but over", "the 1 NEAR max per tx."],
-           badge="BLOCKED BEFORE SIGNING", badge_color=RED,
-           card_lines=[("Reason  ExceedsMaxPerTx", False),
-                       ("No transaction signed.", False),
-                       ("No tx hash.", False)],
-           num="5 / 7")
-draw_slide(f"{S}06.png", "OWNER CONTROL",
+           num="04 / 07")
+draw_slide(f"{S}05.png", "04 / WHY NEAR",
+           ["Limits live in", "a NEAR contract."],
+           ["The agent key calls", "one method only.",
+            "No UI can bypass it."],
+           card_lines=[("Contract  policy.emoi.testnet", True)],
+           num="05 / 07")
+draw_slide(f"{S}06.png", "05 / OWNER CONTROL",
            ["Pause stops", "spending instantly."],
            ["A transfer attempted while", "paused is blocked", "before signing. No tx sent."],
            card_lines=[("Pause tx  9HnmP4Cuvk61MJ1pgVm6BuB", True),
@@ -127,9 +125,10 @@ draw_slide(f"{S}06.png", "OWNER CONTROL",
                        ("Resume tx  8PJUkRTj2Kxkziy4DZgBRD", True),
                        ("           YkGf6kqhTguUxcyCKMHaSC", True),
                        ("Revoke is terminal.", False)],
-           num="6 / 7")
-draw_slide(f"{S}07.png", "EMOI  ·  SAFE AGENT",
-           ["Policy on-chain.", "Key limited.", "Owner in control."],
-           ["agent.emoi.testnet", "policy.emoi.testnet"],
-           num="7 / 7")
+           num="06 / 07")
+draw_slide(f"{S}07.png", "06 / YOUR TURN",
+           ["What limit would", "you set?"],
+           ["Demo + code:",
+            "github.com/Olympusxvn/EMOI"],
+           num="07 / 07")
 print("slides done")

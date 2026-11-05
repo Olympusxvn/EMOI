@@ -1,22 +1,22 @@
 1
 00:00:00,000 --> 00:00:07,000
-Give AI a wallet, but never the keys to everything.
+Your AI assistant needs to pay for things. But one bad instruction could drain your wallet.
 
 2
 00:00:07,000 --> 00:00:14,000
-One agent. Strict limits. Max 1 NEAR per transaction, daily limit 2 NEAR, whitelist emoi01 and emoi02.
+Watch one payment. The agent pays a 0.5 NEAR invoice to emoi01, inside a max 1, daily 2, whitelist-only policy.
 
 3
 00:00:14,000 --> 00:00:21,000
-Valid payment: 0.5 NEAR to emoi01, the API and compute provider. Success.
+Success. Half a NEAR to the API provider, settled on NEAR testnet. Transaction on screen.
 
 4
 00:00:21,000 --> 00:00:28,000
-Attack one: send 100 NEAR to attacker. Blocked before signing. Recipient not whitelisted. No transaction signed.
+Now the attack. Send 100 NEAR to attacker. Blocked before signing. No transaction, no hash.
 
 5
 00:00:28,000 --> 00:00:35,000
-Attack two: 1.5 NEAR to emoi01. Blocked before signing. It exceeds the max per transaction.
+Why NEAR? The limits live in a smart contract, and the agent key can call exactly one method. No frontend can bypass that.
 
 6
 00:00:35,000 --> 00:00:42,000
@@ -24,4 +24,4 @@ Owner control: pause stops spending instantly. A paused attempt is blocked befor
 
 7
 00:00:42,000 --> 00:00:49,000
-Policy on-chain. Key limited. Owner in control.
+What limit would you set for your AI? Repo on screen. Built at NEAR Hackathon.
