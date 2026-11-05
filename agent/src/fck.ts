@@ -21,12 +21,17 @@ export interface FckKey {
   allowanceYocto: string;
 }
 
-export async function fckPrivateKeyFor(
-  agentId: string,
-  opts?: { contractId?: string; method?: string },
-): Promise<FckKey> {
-  const contractId = opts?.contractId ?? config.policyContractId;
-  const method = opts?.method ?? "agent_transfer";
+export interface ScopedFck {
+  publicKey: string;
+  allowanceYocto: string;
+}
+
+export interface ListedKey {
+  public_key?: string;
+  access_key?: { permission?: unknown };
+}
+
+async function listAccessKeys(agentId: string): Promise<ListedKey[]> {
   const rpc = RPC_URLS[config.network as keyof typeof RPC_URLS] ?? RPC_URLS.testnet;
   const res = await fetch(rpc, {
     method: "POST",
@@ -45,10 +50,18 @@ export async function fckPrivateKeyFor(
   });
   const data = (await res.json()) as {
     error?: { message?: string };
-    result?: { keys?: Array<{ public_key?: string; access_key?: { permission?: unknown } }> };
+    result?: { keys?: ListedKey[] };
   };
   if (data.error) throw new Error(`key list for ${agentId} failed: ${data.error.message ?? "RPC error"}`);
-  const keys = data.result?.keys ?? [];
+  return data.result?.keys ?? [];
+}
+
+/** Best (highest-allowance) single-method FCK for the contract, or null. */
+export function pickScopedFck(
+  keys: ListedKey[],
+  contractId: string,
+  method: string,
+): ScopedFck | null {
   let best: { pub: string; allowance: bigint } | null = null;
   for (const k of keys) {
     const perm = k.access_key?.permission as
@@ -62,11 +75,80 @@ export async function fckPrivateKeyFor(
     const allowance = fc.allowance ? BigInt(fc.allowance) : 0n;
     if (!best || allowance > best.allowance) best = { pub: k.public_key ?? "", allowance };
   }
-  if (!best || !best.pub) throw new Error(`no ${method}-only FCK on ${contractId} found on-chain for ${agentId}`);
-  const bare = best.pub.replace(/^ed25519:/, "");
+  if (!best || !best.pub) return null;
+  return { publicKey: best.pub, allowanceYocto: best.allowance.toString() };
+}
+
+export async function fckPrivateKeyFor(
+  agentId: string,
+  opts?: { contractId?: string; method?: string },
+): Promise<FckKey> {
+  const contractId = opts?.contractId ?? config.policyContractId;
+  const method = opts?.method ?? "agent_transfer";
+  const best = pickScopedFck(await listAccessKeys(agentId), contractId, method);
+  if (!best) throw new Error(`no ${method}-only FCK on ${contractId} found on-chain for ${agentId}`);
+  const bare = best.publicKey.replace(/^ed25519:/, "");
   const file = path.join(os.homedir(), ".near-credentials", config.network, agentId, `ed25519_${bare}.json`);
-  if (!fs.existsSync(file)) throw new Error(`on-chain FCK ${best.pub} for ${agentId} has no local key file at ${file}`);
+  if (!fs.existsSync(file)) throw new Error(`on-chain FCK ${best.publicKey} for ${agentId} has no local key file at ${file}`);
   const keyData = JSON.parse(fs.readFileSync(file, "utf-8")) as { private_key?: string };
   if (!keyData.private_key) throw new Error(`key file ${file} has no private_key`);
-  return { publicKey: best.pub, privateKey: keyData.private_key, allowanceYocto: best.allowance.toString() };
+  return { publicKey: best.publicKey, privateKey: keyData.private_key, allowanceYocto: best.allowanceYocto };
+}
+
+// Allowance alert threshold. Default 0.1 NEAR matches the preflight
+// "fck allowance" check rationale (~100 judging-week transfers margin).
+// Override per environment with FCK_WARN_ALLOWANCE_NEAR (decimal NEAR).
+export const DEFAULT_FCK_WARN_ALLOWANCE_NEAR = "0.1";
+
+export function fckWarnThresholdYocto(): bigint {
+  const raw = (process.env.FCK_WARN_ALLOWANCE_NEAR ?? DEFAULT_FCK_WARN_ALLOWANCE_NEAR).trim();
+  const parts = raw.split(".");
+  const [whole, frac = ""] = parts;
+  if (parts.length > 2 || !/^\d+$/.test(whole) || !/^\d*$/.test(frac) || frac.length > 24) {
+    throw new Error(`invalid FCK_WARN_ALLOWANCE_NEAR=${JSON.stringify(raw)} (expected decimal NEAR, e.g. "0.1")`);
+  }
+  return BigInt(whole) * 10n ** 24n + BigInt((frac + "0".repeat(24)).slice(0, 24));
+}
+
+export type FckAllowanceVerdict = "ok" | "low";
+
+export function allowanceVerdict(allowanceYocto: bigint, thresholdYocto: bigint): FckAllowanceVerdict {
+  return allowanceYocto >= thresholdYocto ? "ok" : "low";
+}
+
+export interface FckStatus {
+  agent: string;
+  publicKey: string;
+  allowanceYocto: string;
+  thresholdYocto: string;
+  verdict: FckAllowanceVerdict;
+  /** True when the picked key is single-method agent_transfer on the policy contract. */
+  scopeOk: boolean;
+  /** Present only when verdict is low: the recovery path. */
+  action?: string;
+}
+
+/**
+ * Read-only FCK status for alerts. Never touches the keychain and never
+ * returns private-key material: safe to serve over the local HTTP API.
+ */
+export async function fckStatusFor(
+  agentId: string,
+  opts?: { contractId?: string; method?: string },
+): Promise<FckStatus> {
+  const contractId = opts?.contractId ?? config.policyContractId;
+  const method = opts?.method ?? "agent_transfer";
+  const best = pickScopedFck(await listAccessKeys(agentId), contractId, method);
+  if (!best) throw new Error(`no ${method}-only FCK on ${contractId} found on-chain for ${agentId}`);
+  const threshold = fckWarnThresholdYocto();
+  const verdict = allowanceVerdict(BigInt(best.allowanceYocto), threshold);
+  return {
+    agent: agentId,
+    publicKey: best.publicKey,
+    allowanceYocto: best.allowanceYocto,
+    thresholdYocto: threshold.toString(),
+    verdict,
+    scopeOk: true,
+    ...(verdict === "low" ? { action: "reissue BEFORE deleting any full key: npm run reissue-fck -- --agent " + agentId + " --confirm" } : {}),
+  };
 }

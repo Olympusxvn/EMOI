@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "tsx test/validation.test.ts && tsx test/parser.test.ts && tsx test/research.test.ts && tsx test/llm.test.ts && tsx test/keyfile.test.ts && tsx test/preflight.test.ts && tsx test/dryrun.test.ts",
+    "test": "tsx test/validation.test.ts && tsx test/parser.test.ts && tsx test/research.test.ts && tsx test/llm.test.ts && tsx test/keyfile.test.ts && tsx test/preflight.test.ts && tsx test/dryrun.test.ts && tsx test/receipts.test.ts && tsx test/fck.test.ts",
     "demo:valid": "tsx scripts/demo-valid.ts",
     "demo:attack": "tsx scripts/demo-attack.ts",
     "demo:pause": "tsx scripts/pause-demo.ts",
@@ -12,7 +12,8 @@
     "create-agent": "tsx scripts/create-agent.ts",
     "conformance": "tsx scripts/conformance.ts",
     "preflight": "tsx scripts/preflight.ts",
-    "reissue-fck": "tsx scripts/reissue-fck.ts"
+    "reissue-fck": "tsx scripts/reissue-fck.ts",
+    "export-receipts": "tsx scripts/export-receipts.ts"
   },
   "dependencies": {
     "bs58": "^6.0.0",

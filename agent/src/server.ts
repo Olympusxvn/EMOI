@@ -14,9 +14,15 @@
 // POST /transfer/dry-run -> preview only: parse + validate against fresh
 //                      views, return would-succeed/rejected. Never signs,
 //                      never broadcasts, never logs activity, no txHash.
+// GET  /receipts[?agent=&format=json|csv] -> exportable spend receipts
+//                      (same source as /activity). CSV downloads as a file.
+// GET  /fck-status[?agent=] -> FCK allowance vs threshold (ok/low).
+//                      Read-only, never returns private-key material.
 import http from "node:http";
 import { config } from "./config.js";
 import { collectActivity } from "./activity.js";
+import { fckStatusFor } from "./fck.js";
+import { buildReceipts, receiptsFilename, receiptsToCsv } from "./receipts.js";
 import { previewTransfer, processIntent } from "./service.js";
 import {
   RESEARCH_AGENT_ID,
@@ -233,6 +239,48 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
       }
     });
+    return;
+  }
+  if (req.url?.startsWith("/receipts") && req.method === "GET") {
+    const url = new URL(req.url, "http://localhost");
+    const agentId = url.searchParams.get("agent") ?? config.agentAccountId;
+    const format = url.searchParams.get("format") ?? "json";
+    if (format !== "json" && format !== "csv") {
+      res.statusCode = 400;
+      res.end(JSON.stringify({ error: "format must be 'json' or 'csv'" }));
+      return;
+    }
+    try {
+      const collected = await collectActivity(config.policyContractId);
+      const rows = buildReceipts(collected.entries.filter((e) => e.agent === agentId));
+      if (format === "csv") {
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename="${receiptsFilename(agentId, "csv")}"`);
+        res.end(receiptsToCsv(rows));
+        return;
+      }
+      res.end(JSON.stringify({
+        agent: agentId,
+        exportedAt: new Date().toISOString(),
+        nearblocksAvailable: collected.nearblocksAvailable,
+        receipts: rows,
+      }, null, 2));
+    } catch (e) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+    }
+    return;
+  }
+  if (req.url?.startsWith("/fck-status") && req.method === "GET") {
+    const url = new URL(req.url, "http://localhost");
+    const agentId = url.searchParams.get("agent") ?? config.agentAccountId;
+    try {
+      const status = await fckStatusFor(agentId);
+      res.end(JSON.stringify(status, null, 2));
+    } catch (e) {
+      res.statusCode = 500;
+      res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+    }
     return;
   }
   res.statusCode = 404;

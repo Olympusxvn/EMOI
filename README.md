@@ -138,8 +138,8 @@ reputation, scam detection, TEE attestation, Chain Signatures, or Intents.
    The Agent ID is this sub-account ID.
 2. The owner adds a Function Call Key to the agent account: receiver
    `policy.emoi.testnet`, method `agent_transfer` only, gas allowance only.
-3. The owner registers the agent, deposits NEAR into the PolicyVault, and sets
-   the policy (max per tx, daily limit, whitelist).
+3. The owner registers the agent (ID must be the caller or its sub-account),
+   deposits NEAR into the PolicyVault, and sets the policy (max, daily, whitelist).
 4. The agent service holds only the agent FCK and calls `agent_transfer`.
    The contract checks, in order: registered, not paused, whitelisted recipient,
    amount > 0, within max per tx, within daily limit, vault balance sufficient.
@@ -153,8 +153,8 @@ whitelist `emoi01.testnet` and `emoi02.testnet`, valid transfer 0.5 NEAR to `emo
 State is per agent for policy, per owner for the ledger: multiple agents of
 one owner share the owner's vault balance, but each keeps its own policy,
 spent_today, and status. `set_policy` does not reset spent_today or change
-status. Storage is paid by the contract account in the MVP (single-tenant
-demo limitation, documented, not a per-user billing claim).
+status. State writes are caller-paid at measured cost: register/set_policy attach
+a ~0.05 NEAR buffer, the contract keeps the bytes used and refunds the excess.
 
 ## Contract API
 
@@ -164,8 +164,8 @@ Contract: `policy.emoi.testnet` (testnet). Wasm 139,244 bytes, SHA-256 hex
 | Method | Type | Args | Notes |
 |---|---|---|---|
 | `new` | init | — | Initialises empty maps |
-| `register_agent` | call, owner only | `agent_account_id` | Re-registering any existing agent, including revoked, reverts |
-| `set_policy` | call, owner only | `agent_account_id`, `max_per_tx` (yocto string), `daily_limit` (yocto string), `whitelist` (max 20, deduped) | max > 0, daily > 0, max ≤ daily, else `InvalidPolicy`; does not reset spent_today or status |
+| `register_agent` | payable call, caller must be the agent ID or its parent | `agent_account_id` | Re-registering any existing agent, including revoked, reverts |
+| `set_policy` | payable call, owner only (storage buffer, excess refunded) | `agent_account_id`, `max_per_tx` (yocto string), `daily_limit` (yocto string), `whitelist` (max 20, deduped) | max > 0, daily > 0, max ≤ daily, else `InvalidPolicy`; does not reset spent_today or status |
 | `deposit_funds` | payable call | — (attached deposit) | Credits the caller's own ledger |
 | `withdraw` | call | `amount` (yocto string) | Caller's own ledger only, amount ≤ balance; ledger updated before the transfer promise |
 | `agent_transfer` | call, agent FCK only in practice | `recipient`, `amount` (yocto string) | Caller is the agent; see check order below |
@@ -194,7 +194,7 @@ promise, and a NEP-297 event is logged:
 This follows the NEP-297 `EVENT_JSON:` format (prefix + standard / version /
 event / data, where data is an arbitrary JSON value per the NEP-297 interface;
 the example in NEP-297 itself uses a data object). `standard: "emoi"` is the
-application event namespace, not a NEP number.
+application event namespace, not a NEP number. Lifecycle events (agent_registered, policy_updated, agent_paused, agent_resumed, agent_revoked) share the same shape.
 
 ## Error table
 
@@ -202,6 +202,8 @@ application event namespace, not a NEP number.
 |---|---|---|
 | `PolicyViolation: AgentNotRegistered` | Agent id not in `agents`, or policy missing | contract `register`/`set_policy`/`agent_transfer` |
 | `PolicyViolation: AgentAlreadyRegistered` | Registering an existing agent id, including revoked | contract `register_agent` |
+| `PolicyViolation: AgentNotOwnedSubaccount` | Registering an ID the caller does not own | contract `register_agent` |
+| `InsufficientStorageDeposit` | Attached deposit below the measured storage cost | contract `register_agent` / `set_policy` |
 | `PolicyViolation: OnlyOwnerCanSetPolicy` | Non-owner calls `set_policy` | contract `set_policy` |
 | `PolicyViolation: OnlyOwnerCanManageAgent` | Non-owner calls pause/resume/revoke | contract pause/resume/revoke |
 | `PolicyViolation: InvalidPolicy` | max ≤ 0, daily ≤ 0, max > daily, or whitelist > 20 | contract `set_policy` |
@@ -509,7 +511,13 @@ cd frontend && npm run dev    # frontend, http://localhost:5173
 # Demo scripts (from agent/):
 npm run demo:valid -- --json   # valid transfer (real tx hash)
 npm run demo:attack -- --json  # both attacks blocked, no NEAR leaves the vault
+npm run export-receipts -- --format csv   # spend receipts to stdout (or --out file)
 ```
+
+Service endpoints (read-only): `GET /receipts?format=json|csv` exports the same
+spend log as a CSV download or JSON, and `GET /fck-status` reports the agent FCK
+allowance against the `FCK_WARN_ALLOWANCE_NEAR` threshold (default 0.1 NEAR, same
+as the preflight gauge) as `ok`/`low` - never returning private-key material.
 
 Reproduction, two levels:
 
@@ -560,8 +568,8 @@ PolicyVault contract or the two demo scripts (`demo:valid`,
   near-cli-rs, near-api-js, near-contract-audit
 - UI/design: ui-ux-pro-max; code style: karpathy-guidelines
 - NEAR docs: https://docs.near.org/llms.txt (static grounding)
-- NEP-297 Events (Final) for the `transfer_succeeded` log format; NEP-145
-  Storage Management was read only, not implemented (contract pays storage in MVP)
+- NEP-297 Events (Final) for lifecycle + `transfer_succeeded` log formats; NEP-145
+  Storage Management informed the measured caller-paid storage (byte-priced, excess refunded)
 
 ## Future work (not built, not claimed)
 

@@ -9,25 +9,29 @@
 | `agent/scripts/create-agent.ts` | — | Create Agent script (T2.1, owner-operated). |
 | `agent/scripts/demo-attack.ts` | — | demo:attack (T2.7). Runs both frozen attacks through the REAL |
 | `agent/scripts/demo-valid.ts` | — | demo:valid (T2.6). One command, deterministic parser-only by default. |
+| `agent/scripts/export-receipts.ts` | — | Export spend receipts to a file or stdout (agent-only, read-only). |
 | `agent/scripts/pause-demo.ts` | — | Pause demo script (Phase 4 video). |
 | `agent/scripts/preflight.ts` | nonExecutableShFiles | preflight.ts — flip/submission readiness checklist for EMOI. |
 | `agent/scripts/reissue-fck.ts` | — | Reissue FCK script (T2.2, flag-gated). |
 | `agent/scripts/transfer-for-agent.ts` | — | Transfer for a specific agent (T2.9 helper, also useful for any |
 | `agent/src/activity.ts` | ActivityEntry, appendActivity, readActivity, fetchNearBlocksActivity, collectActivity, vendorRole | Activity log (T2.8 fallback). JSONL, not committed. |
 | `agent/src/config.ts` | config, requireAgentFck | Agent service configuration. Reads ONLY the agent FCK key and the |
-| `agent/src/fck.ts` | FckKey, fckPrivateKeyFor | Shared FCK picker (P2). Finds an agent's single-method Function Call Key |
+| `agent/src/fck.ts` | FckKey, ScopedFck, ListedKey, pickScopedFck, fckPrivateKeyFor, DEFAULT_FCK_WARN_ALLOWANCE_NEAR, fckWarnThresholdYocto, FckAllowanceVerdict, … | Shared FCK picker (P2). Finds an agent's single-method Function Call Key |
 | `agent/src/llm.ts` | getLlmIntent | NEAR AI Cloud layer (T2.5, optional and env-gated). |
 | `agent/src/nearClient.ts` | createViewNear, createAgentNear, fetchPolicyViews, extractTxHash | near-kit clients (T2.3). View client needs no key; signing client |
 | `agent/src/parser.ts` | ParsedIntent, ParseResult, parseIntent | Deterministic intent parser (T2.4). |
+| `agent/src/receipts.ts` | ReceiptRow, buildReceipts, RECEIPT_CSV_HEADER, receiptsToCsv, receiptsFilename | Exportable spend receipts (agent-only, read-only). A receipt is a |
 | `agent/src/research.ts` | RESEARCH_AGENT_ID, DATA_VENDOR, COMPUTE_VENDOR, DATA_COST_NEAR, COMPUTE_COST_NEAR, MIN_PRICE_NEAR, ResearchStatus, ResearchStep, … | research.ts — Research Report Agent slice (additive, 2026-11-02). |
 | `agent/src/server.ts` | — | Agent service HTTP server (T2.8 endpoint for the local frontend). |
 | `agent/src/service.ts` | TransferResult, intentLineFor, Signer, transferWithValidation, realSigner, resolveLlmIntent, DryRunResult, previewTransfer, … | Agent transfer service (T2.3 / T2.5). |
 | `agent/src/validation.ts` | AgentStatus, Policy, AgentState, PolicyViolation, ValidationResult, currentDayFromMs, validateBeforeSigning, nearToYocto, … | validateBeforeSigning: the single pre-signing re-validation layer. |
 | `agent/test/dryrun.test.ts` | (tests) | Dry-run preview tests: previewTransfer reuses validateBeforeSigning with |
+| `agent/test/fck.test.ts` | (tests) | FCK allowance-alert tests: picker scope rules, threshold parsing, |
 | `agent/test/keyfile.test.ts` | (tests) | Key-file loader tests: conformance must SKIP (not crash) when the |
 | `agent/test/llm.test.ts` | (tests) | LLM harness tests (1a/1b/1c). Fully offline: resolveLlmIntent takes an |
 | `agent/test/parser.test.ts` | (tests) | T2.4 parser tests. The fallback parser must never "fix" malformed |
 | `agent/test/preflight.test.ts` | (tests) | Preflight helper tests: tracked shell scripts must carry +x in the git |
+| `agent/test/receipts.test.ts` | (tests) | Receipt export tests: row projection, CSV escaping, filename safety. |
 | `agent/test/research.test.ts` | (tests) | Research slice tests (2026-11-02). No chain, no network, no keys: |
 | `agent/test/validation.test.ts` | (tests) | T2.5 test set (STRATEGY 9.21). Every failure test asserts the mock |
 | `contract/src/lib.rs` | AgentStatus, Agent, Policy, Contract, new, register_agent, set_policy, deposit_funds, … | EMOI PolicyVault contract. |

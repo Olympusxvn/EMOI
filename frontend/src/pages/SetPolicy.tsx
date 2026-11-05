@@ -60,7 +60,7 @@ export default function SetPolicy({ agentId }: { agentId: string }) {
           whitelist,
         },
         gas: "100000000000000",
-        deposit: "0",
+        deposit: nearToYocto("0.05"), // storage buffer; contract refunds excess
       });
       setMessage(`Policy set. Tx: ${txHashOf(outcome) ?? "unknown"}. Setting a policy does not reset spent_today and does not change the agent status.`);
     } catch (e) {

@@ -201,7 +201,7 @@ async function main() {
       const reg = await runNear([
         "contract", "call-function", "as-transaction", policyId, "register_agent",
         "json-args", JSON.stringify({ agent_account_id: agentId }),
-        "prepaid-gas", "100 Tgas", "attached-deposit", "0 NEAR",
+        "prepaid-gas", "100 Tgas", "attached-deposit", "0.05 NEAR", // storage buffer; contract refunds excess
         "sign-as", ownerId, "network-config", "testnet",
         "sign-with-access-key-file", ownerKeyFile, "send",
       ]);
@@ -246,7 +246,7 @@ async function main() {
           daily_limit: nearToYocto(dailyNear).toString(),
           whitelist,
         }),
-        "prepaid-gas", "100 Tgas", "attached-deposit", "0 NEAR",
+        "prepaid-gas", "100 Tgas", "attached-deposit", "0.05 NEAR", // storage buffer; contract refunds excess
         "sign-as", ownerId, "network-config", "testnet",
         "sign-with-access-key-file", ownerKeyFile, "send",
       ]);

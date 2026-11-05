@@ -22,8 +22,14 @@
 //   promise. This is a documented NEAR async limitation, not claimed
 //   as atomic rollback.
 // - Revoke is terminal: a revoked agent cannot be re-registered.
-// - Storage is paid by the contract account in the MVP (single-tenant
-//   demo limitation, documented in the README).
+// - Registration binds the caller to the agent namespace: the agent ID
+//   must be the caller itself or its sub-account (auth-01, audit run-1).
+// - State writes are caller-paid at measured cost with excess refunded
+//   (auth-02, audit run-1); failed calls pay nothing. The contract
+//   balance backs owner ledgers only, never attacker state.
+// - Lifecycle events (agent_registered, policy_updated, agent_paused,
+//   agent_resumed, agent_revoked, transfer_succeeded) use the same
+//   EVENT_JSON shape for indexers and demos.
 use near_sdk::store::LookupMap;
 use near_sdk::{AccountId, NearToken, PanicOnDefault, Promise, env, near, require};
 
@@ -77,6 +83,23 @@ fn yocto(token: NearToken) -> u128 {
     token.as_yoctonear()
 }
 
+/// auth-02: state writes are caller-paid at measured cost
+/// (security-storage-checks). Asserts the attached deposit covers the
+/// storage delta since `initial_storage` and refunds any excess to
+/// `beneficiary`. A panic rolls everything back, so failed calls never pay.
+fn assert_storage_paid_and_refund(initial_storage: u64, beneficiary: AccountId) {
+    let used = env::storage_usage().saturating_sub(initial_storage);
+    let cost = NearToken::from_yoctonear(used as u128 * env::storage_byte_cost().as_yoctonear());
+    require!(
+        env::attached_deposit() >= cost,
+        "PolicyViolation: InsufficientStorageDeposit"
+    );
+    let refund = env::attached_deposit().saturating_sub(cost);
+    if refund > NearToken::from_yoctonear(0) {
+        Promise::new(beneficiary).transfer(refund).detach();
+    }
+}
+
 #[near]
 impl Contract {
     #[init]
@@ -91,24 +114,40 @@ impl Contract {
     /// Register an agent. The caller becomes the owner of this agent.
     /// Re-registering an existing agent (including a revoked one) fails,
     /// which is what makes revoke terminal.
+    #[payable]
     pub fn register_agent(&mut self, agent_account_id: AccountId) {
         let owner = env::predecessor_account_id();
         require!(
             !self.agents.contains_key(&agent_account_id),
             "PolicyViolation: AgentAlreadyRegistered"
         );
+        // auth-01: the caller must own the agent namespace (itself or its own
+        // sub-account). Open registration allowed ID squatting (audit run-1).
+        let agent_str = agent_account_id.as_str();
+        let caller_str = owner.as_str();
+        require!(
+            agent_str == caller_str || agent_str.ends_with(&format!(".{caller_str}")),
+            "PolicyViolation: AgentNotOwnedSubaccount"
+        );
+        let initial_storage = env::storage_usage();
         self.agents.insert(
-            agent_account_id,
+            agent_account_id.clone(),
             Agent {
-                owner,
+                owner: owner.clone(),
                 status: AgentStatus::Active,
             },
         );
+        assert_storage_paid_and_refund(initial_storage, owner.clone());
+        env::log_str(&format!(
+            "EVENT_JSON:{{\"standard\":\"emoi\",\"version\":\"1.0.0\",\"event\":\"agent_registered\",\"data\":{{\"agent\":\"{}\",\"owner\":\"{}\"}}}}",
+            agent_account_id, owner
+        ));
     }
 
     /// Set or replace the policy for an agent. Only that agent's owner
     /// may call this. Existing spent_today/current_day and status are
     /// preserved; a policy change never resets the day's spending.
+    #[payable]
     pub fn set_policy(
         &mut self,
         agent_account_id: AccountId,
@@ -149,8 +188,9 @@ impl Contract {
             Some(existing) => (existing.spent_today, existing.current_day),
             None => (NearToken::from_yoctonear(0), current_day()),
         };
+        let initial_storage = env::storage_usage();
         self.policies.insert(
-            agent_account_id,
+            agent_account_id.clone(),
             Policy {
                 max_per_tx,
                 daily_limit,
@@ -159,6 +199,13 @@ impl Contract {
                 current_day,
             },
         );
+        assert_storage_paid_and_refund(initial_storage, caller.clone());
+        env::log_str(&format!(
+            "EVENT_JSON:{{\"standard\":\"emoi\",\"version\":\"1.0.0\",\"event\":\"policy_updated\",\"data\":{{\"agent\":\"{}\",\"max_per_tx\":\"{}\",\"daily_limit\":\"{}\"}}}}",
+            agent_account_id,
+            yocto(max_per_tx),
+            yocto(daily_limit)
+        ));
     }
 
     /// Deposit NEAR into the caller's own vault ledger.
@@ -206,7 +253,11 @@ impl Contract {
             "PolicyViolation: AgentNotActive"
         );
         agent.status = AgentStatus::Paused;
-        self.agents.insert(agent_account_id, agent);
+        self.agents.insert(agent_account_id.clone(), agent);
+        env::log_str(&format!(
+            "EVENT_JSON:{{\"standard\":\"emoi\",\"version\":\"1.0.0\",\"event\":\"agent_paused\",\"data\":{{\"agent\":\"{}\"}}}}",
+            agent_account_id
+        ));
     }
 
     /// Resume a paused agent. Only its owner may resume, and only a
@@ -218,7 +269,11 @@ impl Contract {
             "PolicyViolation: AgentNotPaused"
         );
         agent.status = AgentStatus::Active;
-        self.agents.insert(agent_account_id, agent);
+        self.agents.insert(agent_account_id.clone(), agent);
+        env::log_str(&format!(
+            "EVENT_JSON:{{\"standard\":\"emoi\",\"version\":\"1.0.0\",\"event\":\"agent_resumed\",\"data\":{{\"agent\":\"{}\"}}}}",
+            agent_account_id
+        ));
     }
 
     /// Revoke an agent. Only its owner may revoke. Revoke is terminal:
@@ -231,7 +286,11 @@ impl Contract {
             "PolicyViolation: AgentAlreadyRevoked"
         );
         agent.status = AgentStatus::Revoked;
-        self.agents.insert(agent_account_id, agent);
+        self.agents.insert(agent_account_id.clone(), agent);
+        env::log_str(&format!(
+            "EVENT_JSON:{{\"standard\":\"emoi\",\"version\":\"1.0.0\",\"event\":\"agent_revoked\",\"data\":{{\"agent\":\"{}\"}}}}",
+            agent_account_id
+        ));
     }
 
     /// Transfer NEAR from the owner's vault to a recipient, called by
@@ -348,7 +407,7 @@ impl Contract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use near_sdk::test_utils::VMContextBuilder;
+    use near_sdk::test_utils::{VMContextBuilder, get_logs};
     use near_sdk::testing_env;
 
     fn owner() -> AccountId {
@@ -368,6 +427,14 @@ mod tests {
     }
     fn other() -> AccountId {
         "other.testnet".parse().unwrap()
+    }
+    fn agent2() -> AccountId {
+        "agent2.emoi.testnet".parse().unwrap()
+    }
+    /// Comfortable buffer for measured storage fees; the contract
+    /// refunds any excess, so tests never depend on exact byte prices.
+    fn storage_deposit() -> NearToken {
+        NearToken::from_yoctonear(100_000_000_000_000_000_000_000)
     }
 
     fn set_context(predecessor: AccountId, attached: NearToken, timestamp_ns: u64) {
@@ -405,7 +472,7 @@ mod tests {
 
     /// Frozen demo policy: max 1 NEAR, daily 2 NEAR, whitelist both vendors.
     fn setup_with_policy_and_funds() -> Contract {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         contract.set_policy(
@@ -421,7 +488,7 @@ mod tests {
 
     #[test]
     fn register_agent_twice_reverts() {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         expect_violation(
@@ -434,7 +501,7 @@ mod tests {
 
     #[test]
     fn set_policy_by_non_owner_reverts() {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         set_context(other(), NearToken::from_yoctonear(0), 0);
@@ -453,7 +520,7 @@ mod tests {
 
     #[test]
     fn set_policy_max_gt_daily_reverts() {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         expect_violation(
@@ -475,7 +542,7 @@ mod tests {
         set_context(agent(), NearToken::from_yoctonear(0), 0);
         let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
         // Owner changes the policy; spent_today must survive the change.
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         contract.set_policy(
             agent(),
             NearToken::from_near(1),
@@ -632,7 +699,7 @@ mod tests {
 
     #[test]
     fn insufficient_vault_balance_rejected() {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         contract.set_policy(
@@ -663,7 +730,7 @@ mod tests {
 
     #[test]
     fn set_policy_whitelist_over_20_reverts() {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         let big: Vec<AccountId> = (0..21)
@@ -684,7 +751,7 @@ mod tests {
 
     #[test]
     fn set_policy_zero_max_reverts() {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         expect_violation(
@@ -702,7 +769,7 @@ mod tests {
 
     #[test]
     fn set_policy_zero_daily_reverts() {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         expect_violation(
@@ -720,7 +787,7 @@ mod tests {
 
     #[test]
     fn set_policy_whitelist_deduped() {
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         let mut contract = Contract::new();
         contract.register_agent(agent());
         contract.set_policy(
@@ -816,7 +883,7 @@ mod tests {
         let _ = contract.agent_transfer(vendor1(), NearToken::from_near(1));
         // spent_today is now 1 NEAR; lower the policy under it
         // (max 0.5 <= daily 0.5 stays a valid policy).
-        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        set_context(owner(), storage_deposit(), 0);
         contract.set_policy(
             agent(),
             NearToken::from_yoctonear(500_000_000_000_000_000_000_000),
@@ -833,5 +900,96 @@ mod tests {
             }),
             "PolicyViolation: ExceedsDailyLimit",
         );
+    }
+
+    // --- auth-01 (audit run-1): agent-ID binding to the caller ---
+
+    #[test]
+    fn register_agent_non_subaccount_reverts() {
+        // attacker.testnet owns neither agent.emoi.testnet nor its parent.
+        set_context(attacker(), storage_deposit(), 0);
+        let mut contract = Contract::new();
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.register_agent(agent());
+            }),
+            "AgentNotOwnedSubaccount",
+        );
+    }
+
+    #[test]
+    fn register_agent_self_allowed() {
+        // The caller may always register its own account ID.
+        set_context(agent(), storage_deposit(), 0);
+        let mut contract = Contract::new();
+        contract.register_agent(agent());
+    }
+
+    // --- auth-02 (audit run-1): caller-paid storage, measured + refunded ---
+
+    #[test]
+    fn register_agent_without_deposit_reverts() {
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        let mut contract = Contract::new();
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.register_agent(agent());
+            }),
+            "InsufficientStorageDeposit",
+        );
+    }
+
+    #[test]
+    fn set_policy_without_deposit_reverts_on_growth() {
+        let mut contract = setup_with_policy_and_funds();
+        // Growing the whitelist consumes new bytes, so a zero deposit
+        // must revert even though the caller is the owner.
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        expect_violation(
+            std::panic::AssertUnwindSafe(|| {
+                contract.set_policy(
+                    agent(),
+                    NearToken::from_near(1),
+                    NearToken::from_near(2),
+                    vec![vendor1(), vendor2(), agent2()],
+                );
+            }),
+            "InsufficientStorageDeposit",
+        );
+    }
+
+    // --- NEP-297 lifecycle events ---
+
+    #[test]
+    fn lifecycle_events_emitted() {
+        let mut contract = setup_with_policy_and_funds();
+        set_context(agent(), NearToken::from_yoctonear(0), 0);
+        contract.request_transfer(vendor1(), NearToken::from_near(1));
+        set_context(owner(), NearToken::from_yoctonear(0), 0);
+        contract.pause_agent(agent());
+        contract.resume_agent(agent());
+        contract.revoke_agent(agent());
+
+        let logs = get_logs();
+        for event in [
+            "agent_registered",
+            "policy_updated",
+            "transfer_succeeded",
+            "agent_paused",
+            "agent_resumed",
+            "agent_revoked",
+        ] {
+            assert!(
+                logs.iter().any(|l| l.contains(event)),
+                "missing event {event} in logs: {logs:?}"
+            );
+        }
+        // Spot-check the payload shape indexers rely on.
+        let transfer = logs
+            .iter()
+            .find(|l| l.contains("transfer_succeeded"))
+            .unwrap();
+        assert!(transfer.contains("emoi01.testnet"));
+        assert!(transfer.contains("1000000000000000000000000"));
     }
 }
