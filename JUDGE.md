@@ -34,7 +34,7 @@ make check                # Tier-1 offline gate (must be green)
 Then either branch (README "Run it yourself" has the full steps):
 - Script: `cd agent && npm run create-agent -- --name <you> --set-policy`
   creates `<you>.<your-account>` under YOUR namespace, funded by you.
-- Wallet: frontend Create Agent page + MyNearWallet (testnet), then the
+- Wallet: frontend Create Agent page + Intear Wallet (testnet), then the
   printed script command finishes FCK + registration.
 
 ## Security claims and where each is proven
