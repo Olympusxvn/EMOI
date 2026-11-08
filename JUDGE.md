@@ -47,6 +47,9 @@ Then either branch (README "Run it yourself" has the full steps):
 | Storage caller-paid, measured, refunded | Register tx attached 0.05, `EXPERIMENTAL_tx_status` shows 0.04914 Transfer back (86 bytes kept): https://explorer.testnet.near.org/transactions/HpjiRSjJ1BEzX6EkaZnbPVa5FJLnSed6M9P4RzjwNWsH |
 | Full lifecycle events (NEP-297) | `agent_registered`, `policy_updated`, `agent_paused`, `agent_resumed`, `agent_revoked`, `transfer_succeeded` — all observed in tx logs above |
 | Wallet path cannot brick accounts | Wallet creation includes full-access AddKey in the same tx: https://explorer.testnet.near.org/transactions/4QwcVoK46ArRCCPAx5n5o6gduJDpzgYnR8p8h2ffQuvH |
+| LLM path signs only policy-legal transfers | Live LLM transfer 0.5 NEAR to emoi01: https://explorer.testnet.near.org/transactions/4KjeY9Nop8CSQX5qyhLTeYXgMy62y9CrUr4AtxWdBksv |
+| Method audit applied | Cloudflare audit-skill run-1: 5 confirmed, both HIGH contract findings fixed by redeploy, rest dispositioned in README |
+| AI pentest applied (Strix, local) | quick white-box: 3 vulns + 2 reviews, all fixed same-day, 57 checks ruled out (SECURITY.md) |
 
 ## Is this really Security & Defense?
 

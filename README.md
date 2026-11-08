@@ -368,6 +368,67 @@ as a timed live race; it is closed by the contract's status-first check at
 execution time (status match before whitelist or limits in `agent_transfer`)
 plus the revoked-transfer test above.
 
+## Method audit: Cloudflare security-audit skill (run-1)
+
+A structured method audit using Cloudflare's open-source `security-audit`
+skill (reconnaissance, coverage-led hunting, candidate validation,
+structured output, independent record verification, target-neutral
+reporting), full-audit mode, quick profile: 4 recon agents, 1 hunter wave
+(4 hunters), 1 coverage critic, 13 independent verifiers. Source
+`main@66aa2e1`; no target code executed; machine-readable records in
+`findings.json` (run bundle kept out of the repo).
+
+Tally: 5 confirmed (3 high, 1 medium, 1 low), 1 needs-validation,
+9 rejected with recorded reasons. Disposition against current source:
+
+| # | Finding | Severity | Disposition |
+|---|---|---|---|
+| contract-auth-01 | Permissionless `register_agent` allows ID squatting | High | FIXED by redeploy: registration bound to caller (live proof in JUDGE.md) |
+| contract-auth-02 | Unauthenticated storage-consuming writes drain vault storage | High | FIXED by redeploy: caller-paid measured storage with refund (live proof in JUDGE.md) |
+| tmp-owner-key | Owner key staged in PID-predictable `/tmp` file (`create-agent.ts`, `pause-demo.ts`) | High | OPEN: local-demo scripts only; same-machine attacker prerequisite |
+| cors-spend-service | Unauthenticated service, CORS `*`, all-interface bind | Medium | OPEN: local-demo tool, never hosted; spend impact bounded by on-chain policy |
+| proofpage-whitelist | Hardcoded whitelist line under live banner | Low | OPEN: rest of the page renders live `get_policy`; offline fallback is labeled |
+| contract-ledger-01 | Failed-transfer receipt may desync ledger (no refund path) | needs-validation | OPEN: needs a trigger run; never observed live |
+
+## Audit re-verification 2026-11-08 (pre-submit)
+
+Fresh live evidence, one week after the 2026-11-02 audit. Every run below
+touched only testnet and is reproducible from a clean checkout plus `.env`.
+
+**Conformance re-run** (`cd agent && npx tsx scripts/conformance.ts`):
+5 PASS, 2 SKIP, 0 FAIL. Live-verified against the contract, the contract
+source, and the README error table: non-whitelisted recipient, over-max
+amount, zero amount, and agent-cannot-set-own-policy (policy unchanged).
+The 2 SKIPs are the revoked-FCK-only and guarded daily-limit cases: their
+throwaway legacy key files (`fckonly-test`, `audit2-test`) are absent from
+this machine's keychain, so those cases were not re-verified today (they
+passed in the 2026-11-02 audit). Vault and main-agent status unchanged by
+the run (4.5 NEAR, Active).
+
+**First live LLM-path transfer** (`npm run demo:valid -- --llm --json`):
+the NEAR AI Cloud layer parsed the intent, which then passed the same
+deterministic parser and the same pre-signing re-validation before signing.
+Success: 0.5 NEAR to `emoi01.testnet`, model
+`deepseek/deepseek-v4.1-flash-1017`:
+https://explorer.testnet.near.org/transactions/4KjeY9Nop8CSQX5qyhLTeYXgMy62y9CrUr4AtxWdBksv
+Note: the default model `deepseek-ai/DeepSeek-V3.1` no longer exists on the
+endpoint (HTTP 400), so this run used a `NEAR_AI_MODEL` override in the
+local `.env`; without a working model the LLM layer fails closed to
+`ParseFailed` and the demo stays parser-only.
+
+**Attack demo re-run** (`npm run demo:attack -- --json`):
+`blocked-as-expected` — `RecipientNotWhitelisted` for 100 NEAR to
+`attacker.near`, `ExceedsMaxPerTx` for 1.5 NEAR to `emoi01.testnet`.
+Both blocked before signing: no tx hash, nothing broadcast.
+
+**Preflight** (`npm run preflight`): 21 PASS, 1 WARN, 0 code FAILs. The WARN
+is the known interim state (main agent full-access key still present,
+deleted last on 13-14/11). The 1 FAIL is environment-only: contract tests
+cannot build `openssl-src` on this Windows machine (no perl); the contract
+is unchanged and CI (`make check` on Linux) stays green.
+
+**AI pentest (Strix 1.7.0, local-only white-box `quick` scan at `2525ce6`):** 3 vulnerability findings + 2 needs-review, all fixed same-day (sub-yocto truncation, implicit-recipient pre-check gap, unauthenticated/CORS `/transfer` + agent/views mismatch, path disclosure in errors); 57 coverage checks ruled out with evidence. Full register with technical solutions: `SECURITY.md`.
+
 ## Research Report Agent (second demo, 2026-11-02)
 
 A second, additive demo on the same PolicyVault, built to answer the
