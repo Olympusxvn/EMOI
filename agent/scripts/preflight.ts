@@ -30,6 +30,19 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../
 type Verdict = "PASS" | "WARN" | "FAIL" | "SKIP";
 type Check = { name: string; verdict: Verdict; detail: string };
 
+export function nonUtf8Docs(files: Array<{ rel: string; bytes: Uint8Array }>): string[] {
+  const bad: string[] = [];
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  for (const f of files) {
+    try {
+      decoder.decode(f.bytes);
+    } catch {
+      bad.push(f.rel);
+    }
+  }
+  return bad;
+}
+
 export function nonExecutableShFiles(lsFilesStaged: string): string[] {
   return lsFilesStaged
     .split("\n")
@@ -118,6 +131,9 @@ async function main() {
     const shModes = execFileSync("git", ["ls-files", "-s", "--", "*.sh"], { cwd: repoRoot, encoding: "utf-8" });
     const noExecSh = nonExecutableShFiles(shModes);
     add("shell scripts executable", noExecSh.length ? "FAIL" : "PASS", noExecSh.length ? `missing +x in git index: ${noExecSh.join(", ")}` : "all tracked .sh are 100755");
+    const docFiles = walk(repoRoot).filter((f) => f.endsWith(".md")).map((f) => ({ rel: path.relative(repoRoot, f).replace(/\\/g, "/"), bytes: new Uint8Array(fs.readFileSync(f)) }));
+    const badDocs = nonUtf8Docs(docFiles);
+    add("docs valid utf-8", badDocs.length ? "FAIL" : "PASS", badDocs.length ? `invalid utf-8: ${badDocs.join(", ")}` : `${docFiles.length} markdown files decode as strict utf-8`);
     add(
       "unpushed local changes",
       status ? "WARN" : "PASS",

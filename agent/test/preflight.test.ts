@@ -1,7 +1,7 @@
 // Preflight helper tests: tracked shell scripts must carry +x in the git
 // index, or CI checkout on Linux cannot execute them (2026-11-03 outage).
 import assert from "node:assert";
-import { nonExecutableShFiles } from "../scripts/preflight.js";
+import { nonExecutableShFiles, nonUtf8Docs } from "../scripts/preflight.js";
 
 let failures = 0;
 function check(name: string, fn: () => void) {
@@ -31,6 +31,15 @@ check("non_sh_lines_are_ignored", () => {
 
 check("empty_output_returns_empty", () => {
   assert.deepEqual(nonExecutableShFiles(""), []);
+});
+
+check("utf8_valid_multibyte_passes", () => {
+  const bytes = new TextEncoder().encode("# EMOI \u2014 ok\n");
+  assert.deepEqual(nonUtf8Docs([{ rel: "a.md", bytes: bytes }]), []);
+});
+
+check("utf8_lone_win1252_byte_flagged", () => {
+  assert.deepEqual(nonUtf8Docs([{ rel: "b.md", bytes: new Uint8Array([0x23, 0x20, 0x97, 0x0a]) }]), ["b.md"]);
 });
 
 if (failures > 0) {
