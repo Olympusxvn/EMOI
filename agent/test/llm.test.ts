@@ -82,6 +82,16 @@ await check("1c-grounded-intent-accepted", async () => {
   }
 });
 
+await check("1a-implicit-second-recipient-rejected-before-llm", async () => {
+  const implicit = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+  const m = mockLlm(parseIntent("send 0.5 NEAR to emoi01.testnet"));
+  const r = await resolveLlmIntent(
+    `send 0.5 NEAR to emoi01.testnet or to ${implicit}`,
+    m.fn,
+  );
+  assert.equal(r.ok, false);
+  assert.equal(m.calls(), 0);
+});
 if (failures > 0) {
   console.error(`${failures} llm test(s) failed`);
   process.exit(1);

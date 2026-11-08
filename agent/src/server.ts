@@ -19,6 +19,7 @@
 // GET  /fck-status[?agent=] -> FCK allowance vs threshold (ok/low).
 //                      Read-only, never returns private-key material.
 import http from "node:http";
+import os from "node:os";
 import { config } from "./config.js";
 import { collectActivity } from "./activity.js";
 import { fckStatusFor } from "./fck.js";
@@ -36,13 +37,17 @@ import {
 } from "./research.js";
 import { createViewNear, fetchPolicyViews } from "./nearClient.js";
 import { yoctoToNear } from "./validation.js";
+import { isLocalhostOrigin, resolveTransferAgent, sanitizeErrorForHttp } from "./httpGuards.js";
 
 const port = Number(process.env.AGENT_SERVICE_PORT ?? 3001);
 const researchJobs = new Map<string, ResearchJob>();
 
 const server = http.createServer(async (req, res) => {
   res.setHeader("Content-Type", "application/json");
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin;
+  if (typeof origin === "string" && isLocalhostOrigin(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") {
@@ -88,7 +93,7 @@ const server = http.createServer(async (req, res) => {
       }, null, 2));
     } catch (e) {
       res.statusCode = 500;
-      res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+      res.end(JSON.stringify({ error: sanitizeErrorForHttp(e instanceof Error ? e.message : String(e), os.homedir()) }));
     }
     return;
   }
@@ -103,16 +108,24 @@ const server = http.createServer(async (req, res) => {
           res.end(JSON.stringify({ error: "text is required" }));
           return;
         }
+        let transferAgent: string;
+        try {
+          transferAgent = resolveTransferAgent(parsed.agent, config.agentAccountId);
+        } catch {
+          res.statusCode = 400;
+        res.end(JSON.stringify({ error: "this service signs only for " + config.agentAccountId }));
+          return;
+        }
         const result = await processIntent({
           text: parsed.text,
           useLlm: false,
-          agentAccountId: parsed.agent ?? config.agentAccountId,
+          agentAccountId: transferAgent,
           source: "parser",
         });
         res.end(JSON.stringify(result, null, 2));
       } catch (e) {
         res.statusCode = 500;
-        res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+        res.end(JSON.stringify({ error: sanitizeErrorForHttp(e instanceof Error ? e.message : String(e), os.homedir()) }));
       }
     });
     return;
@@ -143,7 +156,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ ...result, note: "dry-run: nothing was signed" }, null, 2));
       } catch (e) {
         res.statusCode = 500;
-        res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+        res.end(JSON.stringify({ error: sanitizeErrorForHttp(e instanceof Error ? e.message : String(e), os.homedir()) }));
       }
     });
     return;
@@ -185,7 +198,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify(job, null, 2));
       } catch (e) {
         res.statusCode = 400;
-        res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+        res.end(JSON.stringify({ error: sanitizeErrorForHttp(e instanceof Error ? e.message : String(e), os.homedir()) }));
       }
     });
     return;
@@ -236,7 +249,7 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify(done, null, 2));
       } catch (e) {
         res.statusCode = 500;
-        res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+        res.end(JSON.stringify({ error: sanitizeErrorForHttp(e instanceof Error ? e.message : String(e), os.homedir()) }));
       }
     });
     return;
@@ -267,7 +280,7 @@ const server = http.createServer(async (req, res) => {
       }, null, 2));
     } catch (e) {
       res.statusCode = 500;
-      res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+      res.end(JSON.stringify({ error: sanitizeErrorForHttp(e instanceof Error ? e.message : String(e), os.homedir()) }));
     }
     return;
   }
@@ -279,7 +292,7 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(status, null, 2));
     } catch (e) {
       res.statusCode = 500;
-      res.end(JSON.stringify({ error: e instanceof Error ? e.message : String(e) }));
+      res.end(JSON.stringify({ error: sanitizeErrorForHttp(e instanceof Error ? e.message : String(e), os.homedir()) }));
     }
     return;
   }
@@ -287,6 +300,6 @@ const server = http.createServer(async (req, res) => {
   res.end(JSON.stringify({ error: "not found" }));
 });
 
-server.listen(port, () => {
+server.listen(port, "127.0.0.1", () => {
   console.log(`EMOI agent service listening on http://localhost:${port}`);
 });

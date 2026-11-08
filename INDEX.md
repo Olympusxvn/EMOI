@@ -18,6 +18,7 @@
 | `agent/src/activity.ts` | ActivityEntry, appendActivity, readActivity, fetchNearBlocksActivity, collectActivity, vendorRole | Activity log (T2.8 fallback). JSONL, not committed. |
 | `agent/src/config.ts` | config, requireAgentFck | Agent service configuration. Reads ONLY the agent FCK key and the |
 | `agent/src/fck.ts` | FckKey, ScopedFck, ListedKey, pickScopedFck, fckPrivateKeyFor, DEFAULT_FCK_WARN_ALLOWANCE_NEAR, fckWarnThresholdYocto, FckAllowanceVerdict, … | Shared FCK picker (P2). Finds an agent's single-method Function Call Key |
+| `agent/src/httpGuards.ts` | isLocalhostOrigin, resolveTransferAgent, sanitizeErrorForHttp | Pure HTTP guards for the local agent service (audited 2026-11-08). |
 | `agent/src/llm.ts` | getLlmIntent | NEAR AI Cloud layer (T2.5, optional and env-gated). |
 | `agent/src/nearClient.ts` | createViewNear, createAgentNear, fetchPolicyViews, extractTxHash | near-kit clients (T2.3). View client needs no key; signing client |
 | `agent/src/parser.ts` | ParsedIntent, ParseResult, parseIntent | Deterministic intent parser (T2.4). |
@@ -28,6 +29,7 @@
 | `agent/src/validation.ts` | AgentStatus, Policy, AgentState, PolicyViolation, ValidationResult, currentDayFromMs, validateBeforeSigning, nearToYocto, … | validateBeforeSigning: the single pre-signing re-validation layer. |
 | `agent/test/dryrun.test.ts` | (tests) | Dry-run preview tests: previewTransfer reuses validateBeforeSigning with |
 | `agent/test/fck.test.ts` | (tests) | FCK allowance-alert tests: picker scope rules, threshold parsing, |
+| `agent/test/httpGuards.test.ts` | (tests) | HTTP guard tests (offline, pure functions only). |
 | `agent/test/keyfile.test.ts` | (tests) | Key-file loader tests: conformance must SKIP (not crash) when the |
 | `agent/test/llm.test.ts` | (tests) | LLM harness tests (1a/1b/1c). Fully offline: resolveLlmIntent takes an |
 | `agent/test/parser.test.ts` | (tests) | T2.4 parser tests. The fallback parser must never "fix" malformed |

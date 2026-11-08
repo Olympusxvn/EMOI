@@ -3,6 +3,7 @@
 import assert from "node:assert";
 import { transferWithValidation } from "../src/service.js";
 import {
+  nearToYocto,
   validateBeforeSigning,
   type AgentState,
   type Policy,
@@ -223,6 +224,16 @@ async function run() {
     assert.equal(m.calls(), 0);
   });
 
+  await check("yocto_rejects_sub_yocto_precision", async () => {
+    assert.throws(() => nearToYocto("0.0000000000000000000000001"), /ParseFailed/);
+    assert.throws(() => nearToYocto("1.0000000000000000000000009"), /ParseFailed/);
+  });
+
+  await check("yocto_accepts_exact_24_decimals", async () => {
+    assert.equal(nearToYocto("0.000000000000000000000001"), 1n);
+    assert.equal(nearToYocto("0.5"), 500000000000000000000000n);
+    assert.equal(nearToYocto("1"), 1000000000000000000000000n);
+  });
   if (failures > 0) {
     console.error(`${failures} validation test(s) failed`);
     process.exit(1);

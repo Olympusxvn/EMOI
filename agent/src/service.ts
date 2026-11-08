@@ -128,6 +128,12 @@ export async function resolveLlmIntent(
       (r) => r.toLowerCase(),
     ),
   );
+  // Implicit accounts (64 hex chars, no suffix) are valid recipients too:
+  // without this, a second recipient in implicit form is invisible here
+  // and the model would narrow a two-recipient request.
+  for (const m of text.matchAll(/\b[0-9a-f]{64}\b/gi)) {
+    rawRecipients.add(m[0].toLowerCase());
+  }
   // Distinct amounts by exact yocto value, so "0.5" and "0.50"
   // count as one amount, not two. Only numbers directly before
   // "NEAR" count as amounts: digits inside an account name such

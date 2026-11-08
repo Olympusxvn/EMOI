@@ -55,7 +55,7 @@
     <p class="policy-line" id="policy-line">Policy: max 1 NEAR per transaction · daily limit 2 NEAR</p>
     <p class="policy-line" id="spent-line">Spent today: 0.5 / 2.0 NEAR</p>
     <div class="bar"><div id="spent-bar"></div></div>
-    <p class="whitelist">Whitelist: emoi01.testnet (API / compute provider) · emoi02.testnet (data provider)</p>
+    <p class="whitelist" id="whitelist-line">Whitelist: emoi01.testnet (API / compute provider) · emoi02.testnet (data provider)</p>
     <p class="vault" id="vault-line">Vault: 5.0 NEAR · Contract: policy.emoi.testnet</p>
   </section>
 
@@ -132,6 +132,7 @@
       if (spent === null || daily === null || max === null || vault === null) throw new Error("bad values");
       document.getElementById("status-pill").textContent = state.status;
       document.getElementById("policy-line").textContent = "Policy: max " + max + " NEAR per transaction · daily limit " + daily + " NEAR";
+      document.getElementById("whitelist-line").textContent = "Whitelist: " + policy.whitelist.join(", ");
       document.getElementById("spent-line").textContent = "Spent today: " + spent + " / " + daily + " NEAR";
       document.getElementById("spent-bar").style.width = Math.min(100, (Number(spent) / Number(daily)) * 100) + "%";
       document.getElementById("vault-line").textContent = "Vault: " + vault + " NEAR · Contract: policy.emoi.testnet";

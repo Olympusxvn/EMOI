@@ -93,6 +93,11 @@ export function nearToYocto(amountNear: string): bigint {
     throw new Error("ParseFailed");
   }
   const [whole, frac = ""] = trimmed.split(".");
+  // No silent sub-yocto truncation: more than 24 decimals is a user
+  // error, so fail closed instead of signing less than displayed.
+  if (frac.length > 24) {
+    throw new Error("ParseFailed");
+  }
   const fracPadded = (frac + "0".repeat(24)).slice(0, 24);
   return BigInt(whole) * 10n ** 24n + BigInt(fracPadded || "0");
 }
