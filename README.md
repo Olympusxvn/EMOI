@@ -1,5 +1,7 @@
 # EMOI -- Safe Agent: Give AI a wallet, without giving it the keys to everything
 
+*Proven: our AI pentester held the real key and still could not escape the policy ([SECURITY.md](SECURITY.md)).*
+
 EMOI ("Em Oi!") is a Safe Agent wallet on NEAR. An AI agent has its own wallet
 and can spend NEAR autonomously, but only inside an on-chain policy the owner
 controls.

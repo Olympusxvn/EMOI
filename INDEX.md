@@ -12,7 +12,7 @@
 | `agent/scripts/deploy-policy.ts` | — | Deploy a freshly built PolicyVault wasm to the policy account |
 | `agent/scripts/export-receipts.ts` | — | Export spend receipts to a file or stdout (agent-only, read-only). |
 | `agent/scripts/pause-demo.ts` | — | Pause demo script (Phase 4 video). |
-| `agent/scripts/preflight.ts` | nonExecutableShFiles | preflight.ts — flip/submission readiness checklist for EMOI. |
+| `agent/scripts/preflight.ts` | nonUtf8Docs, nonExecutableShFiles | preflight.ts — flip/submission readiness checklist for EMOI. |
 | `agent/scripts/reissue-fck.ts` | — | Reissue FCK script (T2.2, flag-gated). |
 | `agent/scripts/transfer-for-agent.ts` | — | Transfer for a specific agent (T2.9 helper, also useful for any |
 | `agent/src/activity.ts` | ActivityEntry, appendActivity, readActivity, fetchNearBlocksActivity, collectActivity, vendorRole | Activity log (T2.8 fallback). JSONL, not committed. |
