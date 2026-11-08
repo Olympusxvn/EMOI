@@ -31,6 +31,9 @@ Core protection principles (frozen, 2-track scope):
   Tally: 3 vulnerability findings + 2 needs-review, all fixed below;
   Triaged at 62 interim results, then the scan was stopped deliberately (see
   Method hygiene); no vulnerability-class item appeared after the first 20.
+  Live side effect, disclosed: dynamic agents signed directly with the
+  demo agent FCK and spent 1.5 NEAR to whitelisted vendors before the daily
+  cap stopped them at exactly 2.0/2.0 (see S-10).
   57 coverage checks ruled out with evidence (register below).
 - Live re-verification 2026-11-08: conformance 5 PASS / 2 SKIP / 0 FAIL,
   `demo:valid --llm` success tx `4KjeY9Nop8CSQX5qyhLTeYXgMy62y9CrUr4AtxWdBksv`,
@@ -108,6 +111,20 @@ storage-consuming writes drained vault storage. Fixed by redeploy before
 caller-paid at measured cost with excess refunded. Live proofs in JUDGE.md
 (registration binding, 0.04914 NEAR storage refund tx).
 
+### S-10 AI pentester spent real vault funds within policy (Observed behavior)
+
+During the Strix run, dynamic agents bypassed the agent service, loaded the
+demo agent (`judgetest01.emoi.testnet`) FCK from the local keychain, and
+signed `agent_transfer` calls directly: 1.5 NEAR total to whitelisted
+vendors (no `activity.log` rows, by construction). The on-chain policy held:
+spending stopped at exactly `spent_today` 2.0/2.0 daily limit; nothing left
+the whitelist; the vault was restored to 5.0 afterward (top-ups
+`23aUq9UW4G4oWLAoYS3Ut1aBtZxjNih6KJgCzv5UfCiA`,
+`EcHES6rgKpMvxYjuTsdtLr1SXJeeJnjpA3nBUwq7mzWf`).
+This is both a method lesson (quarantine live keys from agent sandboxes -
+see Method hygiene) and the strongest live evidence for principle 1: even
+an autonomous attacker with the real key could not escape the policy.
+
 ## Accepted limitation
 
 ### L-01 No refund path on transfer-promise failure
@@ -156,18 +173,45 @@ cross-owner bleed.
 
 ## Verification log 2026-11-08
 
-- `npm test`: 10 files green, including new `httpGuards` checks and the 3
-  new regression checks (each observed failing before its fix).
+- `npm test`: 10 files green, including the new `httpGuards` suite; every fix verified by a check
+  observed failing before it was applied.
 - Live server probes (port 3999, zero spend): loopback-only bind (LAN
   refused), CORS allowlist (localhost echoed, evil absent), agent
   mismatch 400, attack intent rejected pre-signing.
-- Vault untouched by audit tooling: 4.5 NEAR before and after (Strix
-  dynamic probes triggered no spend; conformance and attack demos revert
-  by construction).
+- Vault: 5.0 at session start; 4.5 after `demo:valid --llm`; 3.0 after Strix
+  dynamic agents spent 1.5 NEAR within policy (capped at daily 2.0/2.0, see
+  S-10); restored to 5.0 by owner top-ups (txs above). Conformance and attack
+  demos revert by construction and move nothing.
 - Method hygiene: the Strix sandbox runs with a writable live mount. Mid-run,
   agents rewrote `node_modules` platform bins (restored via `npm ci`), touched
   `frontend/package-lock.json` (reverted), and reverted in-progress source
   fixes plus two new files; the tree was restored from git, every fix
   re-applied and re-verified (`npm test` green, live probes repeated).
   Rule learned: future agent scans target a COPY of the repo, never the
-  live tree. No secrets in any report.
+  live tree. No secrets in any report.`n## Trust, but verify (self-interrogation, 2-track scope)
+
+Hard questions we asked ourselves, with the verdict and how to re-check.
+
+1. Can the agent sneak funds to a non-whitelisted address? No: the
+   contract whitelist gate rejects first, conformance proves the live
+   revert, and `demo:attack` reproduces it. Re-check: `npm run
+   demo:attack`, `npx tsx scripts/conformance.ts`.
+2. What if the LLM is prompt-injected? Its output goes through the same
+   deterministic parser, the 1a/1c grounding harness, and the same
+   pre-signing re-validation; HTTP routes cannot reach the LLM at all
+   (`useLlm: false` hardcoded). Re-check: `test/llm.test.ts`.
+3. What does a leaked FCK cost at most? The remaining daily limit, to
+   whitelisted vendors only; the key cannot set policy, withdraw, or
+   touch the vault. Re-check: `near account list-keys`, `get_policy`.
+4. Can the owner cheat the daily limit via `set_policy`? No: it preserves
+   `spent_today`/`current_day` by code and by test
+   (`set_policy_does_not_reset_spent_today`).
+5. Is revoke really terminal? Yes: re-registering the same id reverts
+   (`revoked_agent_cannot_be_reregistered`, `attack_after_revoke_reverts`).
+6. Does the display match what gets signed? Yes since S-01: more than 24
+   decimals is rejected instead of silently truncated.
+7. Can a strange website drive the local service? Not remotely:
+   loopback-only bind plus localhost-only origins (live-probed). A
+   same-machine browser attacker is out of threat model and stated as such.
+8. Did the policy ever stop a REAL autonomous attacker? Yes: the Strix
+   pentester holding the real FCK, capped at daily 2.0/2.0 (S-10).
