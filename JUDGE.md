@@ -68,6 +68,20 @@ The industry's recurring failure mode is policy enforced by prompt,
 middleware, or app code -- bypassable by construction. EMOI's policy is
 enforced by the chain: the contract itself refuses illegal transfers.
 
+## AI-security vocabulary -> EMOI
+
+If you score the Security track by its vocabulary, here is where each term lives:
+
+| Term | EMOI mechanism | Proof |
+|---|---|---|
+| Prompt injection | Attack demo: injected intents blocked pre-signing with named reasons | `npm run demo:attack` (tx-less rejects) |
+| AI guardrails | Pre-signing re-validation plus on-chain policy (whitelist, max, daily, status) | `validateBeforeSigning`; rejects before any signature |
+| Jailbreak / rule bypass | Parser accepts one exact shape; model output re-parsed and grounded, never trusted | `parser.ts`, `resolveLlmIntent` harness |
+| Protecting the AI system | Spending authority protected, not model weights: single-method FCK, pause, terminal revoke | FCK scope, `demo:pause`, revoke tests |
+| Never trust LLM output | Every money-touching action passes policy; HTTP routes cannot reach the LLM at all | `useLlm: false` on routes, grounding checks |
+
+One line: EMOI applies AI guardrails to economic agents -- even if the LLM is prompt-injected, spending is still blocked by on-chain policy before any transaction is signed.
+
 ## Roadmap (funded separately, self-earning later)
 
 - P0 (pre-submit): key ceremony 13-14/11, flip public. No new features.
