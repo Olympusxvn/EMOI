@@ -147,8 +147,8 @@ gitignored; tests/build/lint green.
   documented missing-throwaway-key cases with restore path, not regressions),
   preflight 0 FAIL on Linux (Windows cargo FAIL is environmental, CI covers)
 - [x] Fresh-clone run AND judge-path run (wallettest01a.emoi.testnet, 2026-11-02) both green; judge-path re-verified 2026-11-05 on both branches (script: auditprobe1 tx 3kaRKVtU; wallet: auditprobe2 tx 4QwcVoK4, both revoked after)
-- [ ] FCK reissued pre-deletion with allowance noted; deletion executed
-  13–14/11; post-deletion `demo:valid` green
+- [x] FCK reissued pre-deletion with allowance noted (0.25 NEAR); deletion executed
+  2026-11-11 (early); post-deletion `demo:valid` green (parser + LLM)
 - [ ] Video output matches narration (C4/N8); X post live with video; repo
   public; LICENSE present; payload prepared early; human submits via form
   14/11 after flip
@@ -202,8 +202,8 @@ agent negotiation/hiring, reputation/scam scoring, shared blocklists.
 - Orphaned testnet keys (scope-limited, delete later, non-blocking):
   ed25519:2qCe... (wallettest02/03 full key, no local private copy),
   ed25519:3zCVL4... (wallettest01a FCK, no local file).
-- Remaining pre-flip: video re-render to fixed narration, FCK reissue 13-14/11
-  with allowance noted, flip public + human form submit morning 14/11.
+- Remaining pre-flip: video re-render to fixed narration (ceremony done 2026-11-11),
+  flip public + human form submit morning 14/11.
 
 ## G. Session log 2026-11-02 (fresh-clone quickstart verification)
 
@@ -265,5 +265,5 @@ found and fixed; level-2 closed with a new vault from scratch.
 - Incident: bc96312 (other machine) stripped +x from both .sh files and broke
   CI setup; fixed by bb03ae3 (mode-only). Lesson: run preflight before push -
   its shell-scripts-executable guard catches this.
-- Remaining pre-flip: FCK reissue 13-14/11 with allowance noted, full-key
-  deletion, post-deletion demo:valid; video stays frozen at 11-02 narration.
+- Remaining pre-flip: key ceremony DONE 2026-11-11 (FCK-only live);
+  video stays frozen at 11-02 narration.

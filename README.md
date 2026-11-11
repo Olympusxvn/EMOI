@@ -48,11 +48,11 @@ this design possible:
   outside that one method. A Function Call Key's allowance is a gas
   budget only -- it cannot transfer NEAR by itself -- which is exactly
   why the spending limits must live in the contract, not in the key.
-  Account-level note: the main agent account currently still has a
-  full-access key on-chain alongside its FCK (see Audit below). Deleting
-  it is the last step before the public flip, after the same deletion was
-  proven safe on a throwaway agent. Until that deletion, the accurate
-  claim is about what the service holds, not about every key on the account.
+  Account-level note: the key ceremony (2026-11-11, ahead of the planned
+  13-14/11 window) deleted the main-agent full-access key with itself
+  (tx `ELTUBB78FhkHYcohgYPMshjYsVFzg1235Pv4XYXeqb3d`); list-keys now
+  shows only the FCK (`agent_transfer` only). The account-level FCK-only
+  claim is a verified on-chain fact, not a plan (see Audit).
 - **Smart-contract policy enforcement.** The policy is stored and
   checked in the PolicyVault contract, in a fixed order: registered,
   not paused, whitelisted, non-zero amount, within max per transaction,
@@ -260,7 +260,7 @@ it was sent and then reverted.
 | Daily-limit drain (many small valid transfers) | Daily limit with lazy day reset, spent_today tracked per agent | same as above |
 | Paused / revoked agent still spending | Status check first, before whitelist or limits; revoke terminal | same as above, plus `pause_agent` / `revoke_agent` |
 | Frontend bypass (calling the contract directly, or editing the UI) | Policy lives in the contract, not the frontend; frontend checks are mirrors only | contract, not frontend |
-| Leaked agent key | Key can only call `agent_transfer` on `policy.emoi.testnet`, within policy; owner can pause, revoke, and reissue the FCK | FCK scope in create-agent script; `scripts/reissue-fck.ts` (flag-gated). Before the planned full-key deletion, see the Audit note on the main account's full-access key -- a leaked FCK is still bounded this way; a leaked full key would not be |
+| Leaked agent key | Key can only call `agent_transfer` on `policy.emoi.testnet`, within policy; owner can pause, revoke, and reissue the FCK | FCK scope in create-agent script; `scripts/reissue-fck.ts` (flag-gated). The main-account full-access key was deleted in the 2026-11-11 ceremony, so no full key remains to leak; reissue for main is no longer possible (recovery is a new agent). |
 | Leaked owner key (worst case) | Owner key is used only by owner-operated local scripts, never by the agent service or frontend; if leaked, the owner must rotate the owner account key out of band (not a contract feature) | `agent/src/config.ts` (reads only the agent FCK), `agent/scripts/create-agent.ts` |
 | Malformed LLM output that merely contains a whitelisted address | Deterministic parser only; fallback never guesses, reduces, or swaps | `agent/src/parser.ts`, `agent/src/llm.ts` |
 | Policy failure re-parsed into a passing transfer | Policy failure is not a parse failure; fallback runs only on unparseable output | `agent/src/service.ts: processIntent` |
@@ -343,14 +343,15 @@ revoked transfer, revoked resume, revoked re-registration, agent self-policy
 change, LLM daily-limit and injection prompts (signer 0, rejected rows in
 Activity). Findings, not hidden:
 
-1. **Full-access key on the main agent account.** On-chain, the main agent
-   has a full-access key plus its FCK. The agent service holds only the FCK,
-   and vault funds stay policy-protected under either key (the contract checks
-   predecessor + policy regardless of key type) -- but a leaked full key could
-   move the agent account's own balance, delete the FCK, or add keys.
-   Resolution: deletion proven on a throwaway agent (below), applied to the
-   main agent last, on 13-14/11, after the video and all demo transactions.
-   Until then, this README does not claim account-level FCK-only for main.
+1. **Full-access key on the main agent account -- RESOLVED 2026-11-11.**
+   On-chain, the main agent had a full-access key plus its FCK (creation
+   artifact). The key ceremony deleted it with itself
+   (tx `ELTUBB78FhkHYcohgYPMshjYsVFzg1235Pv4XYXeqb3d`); list-keys now
+   shows only the FCK. Both `demo:valid` paths were re-run after deletion
+   (parser `BcYyVHTPoVbEq2bEfhhRM9m9zMAtp9GASub8uAodXVwC`, LLM
+   `7ZWYQ9sZ9Xf7zaGYvrY4ZFT1t19f4yUJysPVjE9pVjTy`), so account-level
+   FCK-only for main is now a verified fact. Reissue for main is no
+   longer possible; recovery is a new agent.
 2. **View lag.** RPC views can lag one transaction behind contract execution
    (pause and vault top-up both showed old state on the first view, correct
    on re-check). The contract is authoritative; the audit script and the
@@ -434,11 +435,11 @@ local `.env`; without a working model the LLM layer fails closed to
 `attacker.near`, `ExceedsMaxPerTx` for 1.5 NEAR to `emoi01.testnet`.
 Both blocked before signing: no tx hash, nothing broadcast.
 
-**Preflight** (`npm run preflight`): 21 PASS, 1 WARN, 0 code FAILs. The WARN
-is the known interim state (main agent full-access key still present,
-deleted last on 13-14/11). The 1 FAIL is environment-only: contract tests
-cannot build `openssl-src` on this Windows machine (no perl); the contract
-is unchanged and CI (`make check` on Linux) stays green.
+**Preflight** (`npm run preflight`): 23 PASS, 0 WARN, 1 FAIL. The `main
+account keys` gate reads FCK-only after the 2026-11-11 key ceremony. The
+1 FAIL is environment-only: contract tests cannot build `openssl-src` on
+this Windows machine (no perl); the contract is unchanged and CI (`make
+check` on Linux) stays green.
 
 **AI pentest (Strix 1.7.0, local-only white-box `quick` scan at `2525ce6`):** 3 vulnerability findings + 2 needs-review, all fixed same-day (sub-yocto truncation, implicit-recipient pre-check gap, unauthenticated/CORS `/transfer` + agent/views mismatch, path disclosure in errors); 57 coverage checks ruled out with evidence. Full register with technical solutions: `SECURITY.md`.
 
@@ -484,8 +485,9 @@ vault was topped back up to 2.0 NEAR by an owner deposit (view lag
 showed 1.0 on the first re-check, 2.0 on re-poll -- the audit's view-lag
 finding again, contract authoritative). The research agent, like other
 test agents, has a full-access key on its account alongside its FCK;
-the service holds only its FCK, and the same interim honesty note as
-for the main agent applies.
+the service holds only its FCK. Unlike the main account (key ceremony
+done 2026-11-11), test-agent accounts keep their creation full keys;
+they hold no vault funds and are out of ceremony scope.
 
 What this does NOT claim (read before citing it): hiring other agents
 (paying demo vendors is not hiring); on-chain earn settlement (a
@@ -505,18 +507,19 @@ billing, as in the core demo.
   before the transfer promise, as NEAR requires. If the promise itself
   failed after that update, spent would remain recorded. This is not
   claimed as atomic rollback. Demo recipients are pre-existing accounts only.
-- **Main agent full-access key (interim).** Until the final deletion step on
-  13-14/11, the main agent account has a full-access key on-chain alongside
-  its FCK (see Audit). The agent service holds only the FCK and never the
-  owner key, and vault funds are policy-protected under either key -- but
-  "the agent account holds only an FCK" is not yet a true statement about
-  the main account, and this README does not make it.
-  Deletion procedure (13-14/11, in order): preflight FCK-allowance check
-  must PASS; `npm run reissue-fck -- --confirm` for a fresh key; verify the
-  new key with a zero-amount `agent_transfer` (must revert `InvalidAmount`:
-  proves signing works, spends nothing, changes nothing); confirm `.env`
-  points at the new key; then delete the full key with itself. After
-  deletion, reissue is impossible.
+- **Main agent key ceremony (done 2026-11-11).** Ahead of the planned
+  13-14/11 window: preflight FCK-allowance check PASS; fresh FCK issued
+  (`H7Z9n4wpo9Z5c2vBgf9r7tEQzb5vJoojXYybXhEwQkZf`); new key verified by a
+  0.5 NEAR `demo:valid` (`3mrHnkDfs8HqzpfiZHEgdKrAJFJmn7byGivjVmzyhX35`);
+  conformance 5 PASS / 2 SKIP / 0 FAIL and attack demo blocked;
+  old FCK deleted (`EhG3eKQDiwKVVh1q4YmugMKKVvtf5rcJgxDWZuVjjmyg`); then
+  the full-access key deleted with itself, LAST
+  (`ELTUBB78FhkHYcohgYPMshjYsVFzg1235Pv4XYXeqb3d`). List-keys after:
+  only the FCK (`agent_transfer` only). Post-deletion `demo:valid`
+  green on both paths (parser `BcYyVHTPoVbEq2bEfhhRM9m9zMAtp9GASub8uAodXVwC`,
+  LLM `7ZWYQ9sZ9Xf7zaGYvrY4ZFT1t19f4yUJysPVjE9pVjTy`); vault restored to
+  5.0 (`6WC6NRnbnVjRhrQT4sTfzVEtGA8SkT6wiafhQ82a9kMj`). Reissue for main
+  is now impossible; recovery is a new agent.
 - **FCK gas.** A Function Call Key's allowance is gas only. When it runs
   out, the key cannot sign, and its allowance cannot be changed on an
   existing key. Recovery is the flag-gated reissue script, not a contract call.
@@ -580,6 +583,13 @@ Explorer base: https://explorer.testnet.near.org/transactions/
 | Set policy for test agent `redeploy-proof.emoi.testnet` (max 1, daily 2, whitelist emoi01) | `4fgKs9m271jBPpauyegibznKjVJ4Wx4GtG6mVsZBR9Gt` |
 | Valid transfer 0.5 NEAR to emoi01 via test agent on the redeployed contract | `E8paqc4L9dusds6s6eWUkSVM1iapMqdmAFbpZCXsiY6t` |
 | Owner deposit 0.5 NEAR restoring the shared vault to 2.0 NEAR (main agent spent_today unchanged at 0.5) | `5nhJCELJYzd24NZDK8v24LXMa3qPBzYcD1bgYgvRqL9j` |
+| Key ceremony 2026-11-11: fresh FCK for `judgetest01.emoi.testnet` (0.25 NEAR allowance) | `H7Z9n4wpo9Z5c2vBgf9r7tEQzb5vJoojXYybXhEwQkZf` |
+| Key ceremony 2026-11-11: new-FCK verify, 0.5 NEAR `demo:valid` | `3mrHnkDfs8HqzpfiZHEgdKrAJFJmn7byGivjVmzyhX35` |
+| Key ceremony 2026-11-11: old FCK deleted | `EhG3eKQDiwKVVh1q4YmugMKKVvtf5rcJgxDWZuVjjmyg` |
+| Key ceremony 2026-11-11: main full-access key deleted with itself, LAST | `ELTUBB78FhkHYcohgYPMshjYsVFzg1235Pv4XYXeqb3d` |
+| Key ceremony 2026-11-11: FCK-only proof, parser `demo:valid` 0.5 NEAR | `BcYyVHTPoVbEq2bEfhhRM9m9zMAtp9GASub8uAodXVwC` |
+| Key ceremony 2026-11-11: FCK-only proof, LLM `demo:valid` 0.5 NEAR | `7ZWYQ9sZ9Xf7zaGYvrY4ZFT1t19f4yUJysPVjE9pVjTy` |
+| Key ceremony 2026-11-11: owner deposit 1.5 NEAR restoring vault to 5.0 | `6WC6NRnbnVjRhrQT4sTfzVEtGA8SkT6wiafhQ82a9kMj` |
 
 Attack transactions have no tx hash by design when blocked locally.
 The on-chain non-whitelisted attack in the Phase 1 smoke test was

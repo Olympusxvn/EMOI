@@ -279,9 +279,9 @@ async function main() {
     .filter((para) => /payroll/i.test(para) && !/\b(not|no|never)\b/i.test(para));
   add("README no payroll claim", payrollClaims.length ? "FAIL" : "PASS", payrollClaims.length ? payrollClaims.slice(0, 3).join(" | ") : "only negated mentions (not payroll)");
   add(
-    "README interim FCK honesty",
-    readme.includes("Main agent full-access key (interim)") ? "PASS" : "FAIL",
-    readme.includes("Main agent full-access key (interim)") ? "interim note present" : "interim note missing — honesty claim at risk",
+    "README key-ceremony record",
+    readme.includes("Main agent key ceremony (done 2026-11-11)") ? "PASS" : "FAIL",
+    readme.includes("Main agent key ceremony (done 2026-11-11)") ? "ceremony record present" : "ceremony record missing — honesty claim at risk",
   );
   add(
     "README tracks",

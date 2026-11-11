@@ -84,7 +84,7 @@ One line: EMOI applies AI guardrails to economic agents -- even if the LLM is pr
 
 ## Roadmap (funded separately, self-earning later)
 
-- P0 (pre-submit): key ceremony 13-14/11, flip public. No new features.
+- P0 (pre-submit): key ceremony DONE 2026-11-11 (early, FCK-only live), flip public next. No new features.
 - P1 (mainnet-ready, grants/prizes): owner multisig or timelock withdraw;
   per-vendor caps + cooldown against loops; periodic pentest; small bug bounty.
 - P2 (earn): policy-as-a-service for teams running agents (fee on protected
@@ -105,9 +105,11 @@ One line: EMOI applies AI guardrails to economic agents -- even if the LLM is pr
 
 ## Honest notes (read before scoring security)
 
-- Until 13-14/11 the demo agent account still carries its original full-access
-  key alongside the FCK (creation artifact). The key ceremony deletes it and
-  re-runs the valid demo; after that the account is FCK-only.
+- Key ceremony done 2026-11-11 (ahead of the planned 13-14/11 window):
+  the creation full-access key of the demo agent was deleted with itself
+  (tx `ELTUBB78FhkHYcohgYPMshjYsVFzg1235Pv4XYXeqb3d`), list-keys shows
+  only the FCK, and both `demo:valid` paths were re-run green after
+  deletion. The account is FCK-only -- a verified fact, not a plan.
 - Testnet demo, single owner key (no multisig yet). Owner-key compromise is
   the known residual risk and the first post-hackathon milestone.
 - We claim no formal verification, no TEE, no cross-chain, no approval queue.

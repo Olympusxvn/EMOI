@@ -166,8 +166,12 @@ cross-owner bleed.
 
 - R-1 Owner single key: full loss on owner-key compromise (P1: multisig or
   timelock withdraw).
-- R-2 Main agent full-access key interim until the 13-14/11 key ceremony
-  (planned deletion, then `demo:valid` re-run as FCK-only proof).
+- R-2 Main agent full-access key: CEREMONY DONE 2026-11-11 (ahead of the
+  planned 13-14/11 window). Full key deleted with itself
+  (`ELTUBB78FhkHYcohgYPMshjYsVFzg1235Pv4XYXeqb3d`); list-keys shows only
+  the FCK; post-deletion `demo:valid` green on parser + LLM paths. No
+  full key remains on the main account. (R-2 kept listed for the record;
+  residual risk on this item is zero.)
 - R-3 No formal verification; no per-run HTTP token; no per-transaction
   cooldown (all P1).
 
@@ -188,7 +192,35 @@ cross-owner bleed.
   fixes plus two new files; the tree was restored from git, every fix
   re-applied and re-verified (`npm test` green, live probes repeated).
   Rule learned: future agent scans target a COPY of the repo, never the
-  live tree. No secrets in any report.`n## Trust, but verify (self-interrogation, 2-track scope)
+  live tree. No secrets in any report.
+
+## Verification log 2026-11-11 (key ceremony, done early)
+
+- Reissue: fresh FCK `ed25519:9XbqxrzRXgxVeNvjXh2mxh1LvswjYHsVVhgMKF6tJdn7`
+  (`H7Z9n4wpo9Z5c2vBgf9r7tEQzb5vJoojXYybXhEwQkZf`); `.env` backfilled by the
+  script, private key never printed.
+- Verify before deletion: `demo:valid` parser success 0.5 NEAR
+  (`3mrHnkDfs8HqzpfiZHEgdKrAJFJmn7byGivjVmzyhX35`); conformance 5 PASS /
+  2 SKIP / 0 FAIL (SKIPs are the two documented missing-throwaway-key
+  cases); `demo:attack` blocked pre-signing; preflight 21 PASS / 2 WARN /
+  1 env FAIL.
+- Delete in order: old FCK first
+  (`EhG3eKQDiwKVVh1q4YmugMKKVvtf5rcJgxDWZuVjjmyg`), full-access key LAST
+  with itself (`ELTUBB78FhkHYcohgYPMshjYsVFzg1235Pv4XYXeqb3d`).
+  List-keys after: exactly one key, the new FCK (`agent_transfer` only).
+- FCK-only proof: `demo:valid` parser
+  (`BcYyVHTPoVbEq2bEfhhRM9m9zMAtp9GASub8uAodXVwC`) + LLM
+  (`7ZWYQ9sZ9Xf7zaGYvrY4ZFT1t19f4yUJysPVjE9pVjTy`), both 0.5 NEAR success
+  with zero full-access keys on-chain.
+- Vault: 5.0 -> 3.5 across the ceremony demos, restored to 5.0 by owner
+  `deposit_funds` 1.5 NEAR (`6WC6NRnbnVjRhrQT4sTfzVEtGA8SkT6wiafhQ82a9kMj`;
+  first view still showed 3.5, re-poll showed 5.0 -- the known view-lag
+  finding again). Final preflight: 23 PASS, 0 WARN, 1 env-only FAIL.
+- Hygiene: dead local key files renamed to `*.REVOKED-2026-11-11` /
+  `*.DELETED-2026-11-11` (outside the repo); one-off top-up script
+  deleted after use; no key material in git.
+
+## Trust, but verify (self-interrogation, 2-track scope)
 
 Hard questions we asked ourselves, with the verdict and how to re-check.
 

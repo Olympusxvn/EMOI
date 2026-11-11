@@ -10,10 +10,10 @@ NEAR Hackathon 2026, tracks: `agents` (Agent Economy) + `security` (AI Security 
   receiver = `policy.emoi.testnet`, method_names = `["agent_transfer"]`, gas allowance only.
   An FCK cannot attach NEAR and cannot transfer NEAR by itself — that is why limits
   live in the contract, not in the key.
-  Interim honesty (2026-11-02 audit): the main agent account still has a
-  full-access key on-chain alongside its FCK; account-level FCK-only was proven
-  on a throwaway agent and is the final pre-flip step (13–14/11), after video +
-  all demo txs. Do not claim account-level FCK-only for main until that deletion.
+  Key ceremony DONE 2026-11-11 (ahead of the planned 13-14/11 window):
+  the main full-access key was deleted with itself; list-keys shows only
+  the FCK and post-deletion `demo:valid` is green on both paths.
+  Account-level FCK-only for main is now a verified fact and may be claimed.
 - Owner account: `emoi.testnet` (testnet). Owner funds the vault, sets policy, can
   pause/resume, and revoke is terminal (a revoked Agent ID cannot be re-registered).
 - Agent ID = agent sub-account ID. No separate numeric ID, mapping table, NFT, or
